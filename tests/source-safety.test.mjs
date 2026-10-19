@@ -8,6 +8,10 @@ test('mobile records do not rely on scrolling desktop tables',()=>{assert.match(
 test('secret inputs do not appear in client interface',()=>{assert.doesNotMatch(js,/<input[^>]*(?:api[_ -]?key|secret|token)/i)});
 
 test('the booking and database hold states agree',()=>{const sql=fs.readFileSync(path.join(base,'prisma/authority_schema.sql'),'utf8');assert.match(sql,/'HELD_FREE'/);assert.match(sql,/'HELD_GATEWAY'/);assert.match(sql,/status IN \('HELD_FREE','HELD_GATEWAY'/)});
-test('the public app cannot display seeded confirmations unless explicitly locally reviewed',()=>{assert.match(js,/const localReview=\(/);assert.match(js,/services:localReview\?seedServices/);assert.match(js,/bookings:localReview\?seedBookings/);assert.match(js,/Booking is not yet available/);assert.doesNotMatch(js,/https:\/\/booking\.octalve\.com\/b\/octalve-studio/)});
+test('the public app cannot display seeded confirmations unless explicitly locally reviewed',()=>{assert.match(js,/const localReview=\(/);assert.match(js,/services:localReview\?seedServices/);assert.match(js,/bookings:localReview\?seedBookings/);assert.match(js,/Bookings will open here/);assert.doesNotMatch(js,/https:\/\/booking\.octalve\.com\/b\/octalve-studio/)});
 
 test('Next shell and standalone public UI share identical booking styles',()=>{const appCss=fs.readFileSync(path.join(base,'app/globals.css'),'utf8');assert.equal(appCss,css)});
+
+test('mobile navigation uses More hub, not a mobile sidebar',()=>{assert.match(js,/function more\(\)/);assert.match(js,/id:'more',name:'More'/);assert.match(css,/\.sidebar,\.scrim\{display:none!important\}/)});
+test('public appointment flow has calendar grid, slot selection, and safe requests',()=>{assert.match(js,/function calendarPicker\(\)/);assert.match(js,/data-calendar-date/);assert.match(js,/data-time/);assert.match(js,/s\.publicStep===1&&!s\.selectedTime/);assert.match(js,/finish-request/)});
+test('provider-specific setup and meeting choices remain fail closed',()=>{for(const name of ['Google Meet','Zoom','Microsoft Teams'])assert.ok(js.includes(name));assert.match(js,/function integrationDetail\(\)/);assert.match(js,/Connect.*secure setup is enabled/);assert.match(js,/Credentials and tokens are submitted only to an encrypted server/)});
