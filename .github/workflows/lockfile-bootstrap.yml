@@ -1,0 +1,40 @@
+name: Booking lockfile qualification
+on:
+  push:
+    branches: ['phase/00-booking-shell']
+  workflow_dispatch:
+concurrency:
+  group: booking-lockfile-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: write
+jobs:
+  generate:
+    if: github.repository == 'octalve-core/octalve-booking'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: true
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Generate resolved dependency lockfile
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Upload lockfile as recovery artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: booking-lockfile-${{ github.sha }}
+          path: pnpm-lock.yaml
+          if-no-files-found: error
+          retention-days: 7
+      - name: Commit lockfile to development branch only
+        run: |
+          git add pnpm-lock.yaml
+          if git diff --cached --quiet; then echo 'Lockfile already committed'; exit 0; fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'chore(booking): lock production dependency graph'
+          git push origin HEAD:refs/heads/phase/00-booking-shell

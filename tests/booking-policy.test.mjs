@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {BOOKING_STATUS,initialBookingState,paymentRequiredNow,canConfirm,bookingIntervalsOverlap,validateBookingPrice,safeDisplayStatus,assertNoExternalProductDependency} from '../src/domain.mjs';
+test('zero price initiates free hold, not confirmed without atomic availability',()=>assert.deepEqual(initialBookingState({priceMinor:0,paymentMethod:'free'}),{status:BOOKING_STATUS.HOLD_FREE,requiredNow:0,authority:'availability-engine'}));
+test('free confirmation requires valid hold and available slot',()=>{assert.equal(canConfirm({state:BOOKING_STATUS.HOLD_FREE,paymentMethod:'free',slotFree:true}),false);assert.equal(canConfirm({state:BOOKING_STATUS.HOLD_FREE,paymentMethod:'free',slotFree:true,holdLive:true}),true);assert.equal(canConfirm({state:BOOKING_STATUS.HOLD_FREE,paymentMethod:'free',slotFree:false,holdLive:true}),false)});
+test('paid pay-later is not confused with free appointment',()=>assert.equal(initialBookingState({priceMinor:50000,paymentMethod:'merchant_bank',upfrontPercent:0}).status,BOOKING_STATUS.AWAITING_APPROVAL));
+test('pay-later needs an explicit merchant approval and live slot',()=>{assert.equal(canConfirm({state:BOOKING_STATUS.AWAITING_APPROVAL,paymentMethod:'pay_later',slotFree:true,reviewHoldLive:true}),false);assert.equal(canConfirm({state:BOOKING_STATUS.AWAITING_APPROVAL,paymentMethod:'pay_later',merchantApproved:true,slotFree:true,reviewHoldLive:true}),true)});
+test('gateway paid booking starts on hold',()=>assert.equal(initialBookingState({priceMinor:100000,paymentMethod:'paystack'}).status,BOOKING_STATUS.HOLD_GATEWAY));
+test('bank transfer starts pending review and is not confirmed',()=>assert.equal(initialBookingState({priceMinor:100000,paymentMethod:'merchant_bank'}).status,BOOKING_STATUS.AWAITING_BANK_REVIEW));
+test('gateway cannot self-confirm without provider verification',()=>assert.equal(canConfirm({state:BOOKING_STATUS.HOLD_GATEWAY,paymentMethod:'paystack',slotFree:true}),false));
+test('gateway verifies ownership before confirmation',()=>assert.equal(canConfirm({state:BOOKING_STATUS.HOLD_GATEWAY,paymentMethod:'paystack',providerVerified:true,slotFree:true}),true));
+test('bank screenshot alone cannot confirm',()=>assert.equal(canConfirm({state:BOOKING_STATUS.AWAITING_BANK_REVIEW,paymentMethod:'merchant_bank',slotFree:true,reviewHoldLive:true}),false));
+test('approved bank request also requires live hold and conflict-free slot',()=>{assert.equal(canConfirm({state:BOOKING_STATUS.AWAITING_BANK_REVIEW,paymentMethod:'merchant_bank',bankVerified:true,slotFree:true,reviewHoldLive:true}),true);assert.equal(canConfirm({state:BOOKING_STATUS.AWAITING_BANK_REVIEW,paymentMethod:'merchant_bank',bankVerified:true,slotFree:true,reviewHoldLive:false}),false)});
+test('50% deposit rounds minor units safely',()=>assert.equal(paymentRequiredNow({priceMinor:10001,upfrontPercent:50}),5001));
+test('free policy works even with deposit setting',()=>assert.equal(paymentRequiredNow({priceMinor:0,upfrontPercent:100}),0));
+test('negative price forbidden',()=>assert.throws(()=>validateBookingPrice(-1)));
+test('invalid fractional minor unit forbidden',()=>assert.throws(()=>validateBookingPrice(0.1)));
+test('double booking overlap detected',()=>assert.equal(bookingIntervalsOverlap({start:0,end:60},{start:30,end:90}),true));
+test('adjacent meetings do not overlap',()=>assert.equal(bookingIntervalsOverlap({start:0,end:60},{start:60,end:90}),false));
+test('UI language distinguishes review from confirmation',()=>assert.equal(safeDisplayStatus(BOOKING_STATUS.AWAITING_BANK_REVIEW),'Awaiting payment review'));
+test('cross product runtime import prohibited',()=>{assert.equal(assertNoExternalProductDependency(['@/src/payments','../../octalve-finance/api']),false);assert.equal(assertNoExternalProductDependency(['@/src/booking/payments']),true)});
+
+test('provider authorization is limited to supported gateway methods',()=>{assert.equal(canConfirm({state:BOOKING_STATUS.HOLD_GATEWAY,paymentMethod:'free',providerVerified:true,slotFree:true}),false);assert.equal(canConfirm({state:BOOKING_STATUS.HOLD_GATEWAY,paymentMethod:'merchant_bank',providerVerified:true,slotFree:true}),false)});
+test('gateway and free hold SQL vocabulary stays identical',()=>{assert.equal(BOOKING_STATUS.HOLD_GATEWAY,'HELD_GATEWAY');assert.equal(BOOKING_STATUS.HOLD_FREE,'HELD_FREE');assert.equal(safeDisplayStatus(BOOKING_STATUS.HOLD_GATEWAY),'Awaiting payment')});

@@ -1,0 +1,19 @@
+# Current provider and competitor research (19 October 2026)
+
+Official documentation was reviewed for capabilities, not taken as a guarantee of access for every Nigerian merchant.
+
+| Platform / API | Relevant verified capability | Product decision and limitation | Source |
+| --- | --- | --- | --- |
+| Calendly | Routing forms, questions, availability, reminders, prefilled invitees | Differentiate by payment/approval truth and merchant-specific channels; do not claim intake or messaging are new inventions | https://help.calendly.com/hc/en-us/articles/4418606043927-Getting-started-with-Routing-Forms ; https://help.calendly.com/hc/en-us/articles/13049972554007-10-things-you-can-do-with-Calendly-1-1s |
+| Cal.com | Event types, availability, integrable booking APIs/Atoms and calendar connections | Own our product/workflows; use UI concepts only, no source fork/AGPL assumptions | https://cal.com/docs/availability ; https://cal.com/blog/event-types-guide-calcom ; https://cal.com/docs/atoms/introduction |
+| Google Calendar | Freebusy API, event insert/list/watch | OAuth setup, sync health, resubscription and timezone-aware conflict policy | https://developers.google.com/workspace/calendar/api/v3/reference/freebusy/query ; https://developers.google.com/workspace/calendar/api/v3/reference/events/watch |
+| Microsoft | Microsoft Graph `getSchedule` and calendar view delta | Separate OAuth capability and personal-account support qualification; Outlook connection not equivalent to a static ICS import | https://learn.microsoft.com/en-us/graph/api/calendar-getschedule?view=graph-rest-1.0 ; https://learn.microsoft.com/en-us/graph/delta-query-events |
+| Apple Calendar | CalDAV account configuration, ICS subscription support | Apple Calendar is a client; iCloud/CalDAV capabilities vary. Start with reliable ICS output and tested CalDAV | https://support.apple.com/en-ie/guide/iphone/ipha0d932e96/27/ios/27 ; https://support.apple.com/en-sa/guide/calendar/icl4308d6701/mac |
+| Paystack | Initialise and independently verify transactions, webhook HMAC-SHA512, card/bank/USSD options | Server-side tenant-scoped merchant connection; do not trust browser callback | https://paystack.com/docs/api/transaction/ ; https://paystack.com/docs/payments/webhooks/ |
+| Paystack Pay with Transfer | Unique temporary bank transfer account, 15-minute to 8-hour expiration | Distinct from ordinary corporate bank transfer; dynamic accounts have real expiry and verified payment path | https://paystack.com/docs/payments/payment-channels/ |
+| Flutterwave | NGN virtual accounts and verified webhooks | Connector adapter and eligibility check. Dynamic accounts are not equivalent to merchant supplied bank account | https://developer.flutterwave.com/docs/ngn-virtual-accounts ; https://developer.flutterwave.com/docs/webhooks |
+| WhatsApp Business through provider | Business initiated notifications require opt-in and approved templates | Selectable provider; track consent, template approval and delivery retries | https://www.twilio.com/docs/whatsapp/api ; https://www.twilio.com/docs/whatsapp/tutorial/send-whatsapp-notification-messages-templates |
+| Nigeria NDPA | Privacy law and NDPC guidance | Review lawful basis, retention, rights, secure processing, controller/processor contract and DPIA where indicated | https://ndpc.gov.ng |
+
+### Migration policy
+Neither a shareable Calendly link nor an ICS feed by itself supplies historical authenticated payments, booking service configurations, staff permissions, or evidence of a confirmed payment. Build an explicit upload + preview + map + reconcile pipeline for supported formats, and verify whether optional APIs/exports are accessible to the connected user's account. Imported external events should begin as external busy blocks or historical records, not new confirmed paid bookings without evidence.
