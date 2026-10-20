@@ -1,0 +1,52 @@
+name: Booking native continuous browser journey
+on:
+  push:
+    branches: ['review/booking']
+  workflow_dispatch:
+concurrency:
+  group: booking-native-browser-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  browser:
+    if: github.repository == 'octalve-core/octalve-booking'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Start Booking app
+        run: |
+          pnpm start --hostname 127.0.0.1 >/tmp/booking-next.log 2>&1 &
+          for i in $(seq 1 40); do if curl -fsS http://127.0.0.1:3000/ -o /dev/null; then exit 0; fi; sleep 2; done
+          tail -100 /tmp/booking-next.log
+          exit 1
+      - name: One continuous click-only walkthrough
+        run: node scripts/native-browser-walkthrough.mjs
+      - name: Make MP4
+        if: success()
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          input=$(find browser-evidence -maxdepth 1 -name '*.webm' -type f | head -1)
+          test -n "$input"
+          ffmpeg -hide_banner -loglevel error -y -i "$input" -movflags +faststart -pix_fmt yuv420p browser-evidence/Octalve_Booking_Native_Continuous_Walkthrough.mp4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: booking-native-browser-evidence
+          path: browser-evidence/
+          retention-days: 14
+          if-no-files-found: warn

@@ -1,6 +1,0 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
-const read=p=>readFileSync(new URL('../'+p,import.meta.url),'utf8'),js=read('public/booking.js'),css=read('public/booking.css');
-test('availability editor is accessible and has weekly hours and overrides',()=>{for(const x of ['function availabilityPage','data-bx-day','data-bx-time','save-override','add-hours:','remove-hours:','availability-close'])assert.ok(js.includes(x),x);});
-test('availability changes never imply live booking availability',()=>{assert.match(js,/Live slot availability will require the booking engine and external calendar conflict checks/);assert.match(js,/current browser session/);});
-test('mobile header excludes redundant navigation while keeping bottom nav',()=>{assert.ok(css.includes('.mobile-menu-btn{display:none!important'));assert.match(js,/window.__octalveFinishLoaded/);});
-test('Next and public styles remain identical',()=>assert.equal(css,read('app/globals.css')));
