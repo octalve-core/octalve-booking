@@ -1,21 +1,21 @@
 # Octalve Booking
 
-An independent, mobile-first booking and enquiry scheduling product for businesses and individuals. Styling follows Octalve visual conventions while the source, API, database authority, auth and deployments remain completely independent of Octalve Finance and EMR.
+Independent appointment, enquiry, availability and provider-integration platform for businesses and individuals.
 
-## Application foundation
-Responsive Booking shell; service management including free (`₦0`) appointments, intake enquiries, availability and calendar planning, messaging/payment integrations catalogue, manual merchant-bank review concepts, migrations and a public booking journey. The visual interface does **not** implement authoritative real bookings or provider integrations. All server write endpoints fail closed until secure backend services are built.
+## Native conversion underway (Phase 04)
 
-## Development
-Node 24; pnpm 10.18.3. Run `pnpm install`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`, `pnpm dev`.
+The **application is being rewritten in Next.js 16 App Router, React 19, strict TypeScript and Tailwind CSS 4**. The work is on `phase/04-native-nextjs-conversion`. The previous accepted interface is pinned to commit `39fecd3a5b4e06e934ff7f3ece40f53d49be73eb` as a visual and behavioural reference; production `main` remains on that version until parity is reviewed.
 
-The development phase initially generates its dependency lockfile through a GitHub Actions bootstrap. See [release instructions](docs/GITHUB_VERCEL_RELEASE.md).
+The native branch has dedicated routes and typed React components for workspace, bookings, services, calendar, enquiries, clients, payments, integrations, reports, settings and a public booking experience. Illustrative records are enabled only with `?preview=1`, remain in-memory and do **not** initiate real booking, messaging, payment or calendar operations.
 
-## Product architecture
-- `docs/PRODUCT_REQUIREMENTS_v0.3.md`: product requirements
-- `docs/PROVIDER_RESEARCH_2026-10-19.md`: provider constraints
-- `docs/ENGINEERING_BOUNDARIES.md`: authority and security boundaries
-- `prisma/authority_schema.sql`: reviewed proposal only, not applied
-- `src/domain.mjs`: booking/payment state contract
-- `tests/`: booking policy and safe-client tests
+The former `public/booking.js` and CSS remain only as **unloaded migration references**, pending final parity checks and removal. They are **not** the rendering engine for the native branch.
 
-No runtime imports of Octalve Finance or EMR. Client account data, payment credentials and calendar tokens must not be placed in this frontend.
+## Run checks
+
+Node 24; pnpm 10.18.3. Run `pnpm install --frozen-lockfile`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`. GitHub Actions qualifies the same commands.
+
+See `docs/NATIVE_CONVERSION_PHASE_04.md` for completed milestones, open gaps, review and release gates.
+
+## Security boundary
+
+Standalone source, customer storage, authentication and deployments. No runtime dependency on Octalve Finance or EMR. Provider credentials belong exclusively in verified server-side integration flows. Booking/payment endpoints remain disabled until backend authority is implemented.
