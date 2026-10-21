@@ -65,8 +65,9 @@ for(const width of widths){
    const state=await aside.evaluate(e=>({overflow:getComputedStyle(e).overflowY,scrollbar:getComputedStyle(e).scrollbarWidth,height:e.clientHeight,content:e.scrollHeight}));
    if(state.overflow!=='auto'||state.scrollbar!=='none')throw Error('Sidebar must scroll without displaying track: '+JSON.stringify(state));
    await aside.hover();await page.mouse.wheel(0,500);
+   await page.waitForTimeout(450);
    const scrolled=await aside.evaluate(e=>e.scrollTop);
-   if(state.content>state.height&&scrolled<1)throw Error('Wheel cannot scroll hidden-scrollbar sidebar');
+   if(state.content>state.height&&scrolled<1)throw Error('Wheel cannot scroll hidden-scrollbar sidebar: '+JSON.stringify({...state,scrolled}));
   }
   const doc=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth}));
   if(doc.scroll>doc.client+1)throw Error('Horizontal overflow at '+width+'px: '+JSON.stringify(doc));
