@@ -36,6 +36,8 @@ jobs:
           exit 1
       - name: Responsive and keyboard regression (320, 390, 768, 1440)
         run: node scripts/native-responsive-regression.mjs
+      - name: Auth and sidebar responsive browser journey
+        run: node scripts/native-auth-browser-check.mjs
       - name: Full production-like Demo click walkthrough
         if: github.ref_name == 'demo/booking'
         run: node scripts/native-demo-browser-check.mjs
