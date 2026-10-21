@@ -1,0 +1,75 @@
+name: Booking PostgreSQL migration acceptance
+on:
+  push:
+    branches: ['phase/11-*', 'review/booking', 'main']
+  workflow_dispatch:
+concurrency:
+  group: booking-postgres-migrations-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: booking_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: booking_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d booking_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGDATABASE: booking_ci
+      PGUSER: postgres
+      PGPASSWORD: booking_ci_only
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Apply all migrations against real PostgreSQL 16
+        run: |
+          set -euo pipefail
+          for file in db/migrations/*.sql; do
+            echo "Applying: $file"
+            psql -X -v ON_ERROR_STOP=1 -f "$file"
+          done
+      - name: Confirm database schema and RLS policy guards
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          DECLARE n integer;
+          BEGIN
+            SELECT count(*) INTO n FROM pg_tables WHERE schemaname='booking_auth';
+            IF n != 10 THEN RAISE EXCEPTION 'Expected 10 tables, found %', n; END IF;
+            SELECT count(*) INTO n FROM pg_class c
+            JOIN pg_namespace ns ON ns.oid=c.relnamespace
+            WHERE ns.nspname='booking_auth' AND c.relkind='r'
+             AND c.relrowsecurity AND c.relforcerowsecurity;
+            IF n != 10 THEN RAISE EXCEPTION 'Expected FORCE RLS on 10 tables, found %', n; END IF;
+          END $$;
+          INSERT INTO booking_auth.users(email,full_name,phone_e164)
+            VALUES ('valid@booking.example','Booking Example','+2348012345678');
+          CREATE ROLE booking_ci_unprivileged NOLOGIN;
+          SQL
+          if psql -X -v ON_ERROR_STOP=1 -c "SET ROLE booking_ci_unprivileged; SELECT id FROM booking_auth.users LIMIT 1;"; then
+            echo "SECURITY FAILURE: unprivileged database role was able to read identities"
+            exit 1
+          fi
+          if psql -X -v ON_ERROR_STOP=1 -c "INSERT INTO booking_auth.users(email,full_name,phone_e164) VALUES ('invalid@booking.example','Booking Example','08012345678');"; then
+            echo "SECURITY FAILURE: invalid E.164 phone was accepted"
+            exit 1
+          fi
+          echo "All migration checks passed: real PostgreSQL schema, forced RLS, denied public read, E.164 validation."
