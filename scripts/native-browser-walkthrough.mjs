@@ -30,7 +30,7 @@ try{
  await fill(page.getByRole('textbox',{name:'Search appointments, clients, services and enquiries'}),'___no_such_record___');
  await page.getByText('No matching destinations.').waitFor();checks++;
  await fill(page.getByRole('textbox',{name:'Search appointments, clients, services and enquiries'}),'Amara');
- await click(page.getByRole('dialog',{name:'Workspace search'}).getByRole('link',{name:/Amara Okafor/}));
+ await click(page.getByRole('dialog',{name:'Workspace search'}).getByRole('link',{name:/^Amara Okafor Client/}));
  await page.getByRole('heading',{name:'Amara Okafor'}).waitFor();await remember('Global search to client');
  await click(page.getByRole('link',{name:'Back to clients'}));
  await section('Bookings');
