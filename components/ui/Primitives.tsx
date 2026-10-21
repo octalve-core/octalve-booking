@@ -12,7 +12,7 @@ export function PageHeading({title,subtitle,action}:{title:string;subtitle?:stri
  return <div className="mb-6 flex flex-wrap items-start justify-between gap-4"><div className="min-w-0"><h1 className="text-[25px] leading-tight font-extrabold tracking-tight text-[#182d48] md:text-[27px]">{title}</h1>{subtitle&&<p className="mt-1.5 text-[12px] leading-5 text-slate-500">{subtitle}</p>}</div>{action}</div>;
 }
 export function Panel({title,subtitle,children,action,className=''}:{title?:string;subtitle?:string;children:ReactNode;action?:ReactNode;className?:string}){
- return <section className={`rounded-[18px] border border-octal-border bg-white panel-shadow ${className}`}>
+ return <section className={`min-w-0 rounded-[18px] border border-octal-border bg-white panel-shadow ${className}`}>
  {title&&<div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4"><div><h2 className="text-[13px] font-bold">{title}</h2>{subtitle&&<p className="mt-1 text-[11px] text-slate-400">{subtitle}</p>}</div>{action}</div>}{children}
  </section>;
 }
