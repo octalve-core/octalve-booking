@@ -11,6 +11,11 @@ export interface PgConnection {
 }
 export interface PgPool {connect():Promise<PgConnection>}
 type IdentityConfig={rateKeySecret:string};
+async function enqueueNotice(db:PgConnection,notice:{kind:'verification'|'password-reset';recipient:string;sealedToken:string;expiresAt:Date},at:Date):Promise<void>{
+ if(!notice.recipient||!notice.sealedToken.startsWith('v1.')||!isValidDate(notice.expiresAt)||notice.expiresAt<=at)throw new Error('INVALID_OUTBOX_NOTICE');
+ await db.query(`INSERT INTO booking_auth.mail_outbox(recipient,kind,sealed_token,token_expires_at,created_at,not_before)
+ VALUES($1,$2,$3,$4,$5,$5)`,[notice.recipient,notice.kind,notice.sealedToken,notice.expiresAt,at]);
+}
 const rateLimits:Record<EventType,{max:number;windowMinutes:number}>={
  register:{max:5,windowMinutes:60},
  verify:{max:10,windowMinutes:15},
@@ -69,7 +74,7 @@ export function createPgIdentityRepository(pool:PgPool,config:IdentityConfig):Id
    `,[digest,at,oldThreshold]));
    return (result.rows[0]?.attempts??Number.POSITIVE_INFINITY)<=rule.max;
   },
-  async createPending({profile,passwordDigest,verification,at}){
+  async createPending({profile,passwordDigest,verification,notice,at}){
    checkedDate(at);checkedToken(verification);
    return withTx(pool,async db=>{
     const made=await db.query<{id:string}>(`
@@ -93,10 +98,11 @@ export function createPgIdentityRepository(pool:PgPool,config:IdentityConfig):Id
       INSERT INTO booking_auth.one_time_tokens(user_id,purpose,token_digest,expires_at,created_at)
       VALUES($1,'email-verification',$2,$3,$4)
     `,[user.id,verification.digest,verification.expiresAt,at]);
+    await enqueueNotice(db,notice,at);
     return 'created';
    });
   },
-  async resend({email,verification,at}){
+  async resend({email,verification,notice,at}){
    checkedDate(at);checkedToken(verification);
    return withTx(pool,async db=>{
     const users=await db.query<{id:string}>(`
@@ -112,6 +118,7 @@ export function createPgIdentityRepository(pool:PgPool,config:IdentityConfig):Id
       INSERT INTO booking_auth.one_time_tokens(user_id,purpose,token_digest,expires_at,created_at)
       VALUES($1,'email-verification',$2,$3,$4)
     `,[user.id,verification.digest,verification.expiresAt,at]);
+    await enqueueNotice(db,notice,at);
     return true;
    });
   },
@@ -180,7 +187,7 @@ export function createPgIdentityRepository(pool:PgPool,config:IdentityConfig):Id
      UPDATE booking_auth.sessions SET revoked_at=$2 WHERE token_digest=$1 AND revoked_at IS NULL
    `,[digest,at]).then(()=>undefined));
   },
-  async beginReset({email,token,at}){
+  async beginReset({email,token,notice,at}){
    checkedDate(at);checkedToken(token);
    return withTx(pool,async db=>{
     const users=await db.query<{id:string}>(`
@@ -196,6 +203,7 @@ export function createPgIdentityRepository(pool:PgPool,config:IdentityConfig):Id
       INSERT INTO booking_auth.one_time_tokens(user_id,purpose,token_digest,expires_at,created_at)
       VALUES($1,'password-reset',$2,$3,$4)
     `,[user.id,token.digest,token.expiresAt,at]);
+    await enqueueNotice(db,notice,at);
     return true;
    });
   },

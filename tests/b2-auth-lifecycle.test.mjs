@@ -1,22 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {register,resendVerification,verifyEmail,signIn,currentSession,signOut,requestPasswordReset,resetPassword} from '../src/server/identity/service.ts';
+import {unsealMailToken} from '../src/server/identity/mail-crypto.ts';
+const mailKey=Buffer.alloc(32,7).toString('base64url');
 
 function fixture(){
  const t=new Date('2026-10-21T14:00:00Z');
  const users=new Map(),pending=new Map(),resets=new Map(),sessions=new Map(),emails=[];
+ const deliver=(notice)=>emails.push({kind:notice.kind==='verification'?'verify':'reset',email:notice.recipient,token:unsealMailToken(mailKey,notice.kind,notice.recipient,notice.sealedToken)});
  const db={
   async allowAttempt(){return true},
-  async createPending({profile,passwordDigest,verification}){
+  async createPending({profile,passwordDigest,verification,notice}){
    if(users.has(profile.email))return 'exists';
    const u={userId:'user-'+(users.size+1),email:profile.email,passwordDigest,verified:false,disabled:false};
    users.set(profile.email,u);
    pending.set(verification.digest,{id:u.userId,expiresAt:verification.expiresAt,used:false});
+   deliver(notice);
    return 'created';
   },
-  async resend({email,verification}){
+  async resend({email,verification,notice}){
    const u=users.get(email);if(!u||u.verified||u.disabled)return false;
-   pending.set(verification.digest,{id:u.userId,expiresAt:verification.expiresAt,used:false});return true;
+   pending.set(verification.digest,{id:u.userId,expiresAt:verification.expiresAt,used:false});deliver(notice);return true;
   },
   async consumeVerification({digest,at}){
    const tok=pending.get(digest);
@@ -37,9 +41,9 @@ function fixture(){
    return u?{userId:u.userId,verified:u.verified,disabled:u.disabled}:null;
   },
   async revokeSession({digest}){const s=sessions.get(digest);if(s)s.revoked=true},
-  async beginReset({email,token}){
+  async beginReset({email,token,notice}){
    const u=users.get(email);if(!u||!u.verified||u.disabled)return false;
-   resets.set(token.digest,{id:u.userId,expiresAt:token.expiresAt,used:false});return true;
+   resets.set(token.digest,{id:u.userId,expiresAt:token.expiresAt,used:false});deliver(notice);return true;
   },
   async completeReset({digest,passwordDigest,at}){
    const tok=resets.get(digest);if(!tok||tok.used||tok.expiresAt<=at)return false;
@@ -50,7 +54,7 @@ function fixture(){
    return true;
   }
  };
- const deps={db,mailer:{async verification(email,token){emails.push({kind:'verify',email,token})},async passwordReset(email,token){emails.push({kind:'reset',email,token})}},pepper:'testing-password-pepper-with-at-least-32-bytes',now:()=>new Date(t)};
+ const deps={db,mailEncryptionKey:mailKey,pepper:'testing-password-pepper-with-at-least-32-bytes',now:()=>new Date(t)};
  const signup={kind:'business',fullName:'Example Person',email:'Test@EXAMPLE.COM',password:'example passphrase with 15 chars'};
  return {t,users,pending,resets,sessions,emails,deps,signup};
 }

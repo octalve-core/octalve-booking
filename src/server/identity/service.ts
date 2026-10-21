@@ -1,14 +1,18 @@
 import {digestOpaqueToken,hashPassword,issueOpaqueToken,SESSION_MAX_AGE_SECONDS,validatePassword,verifyPassword} from './security.ts';
 import {normalizedEmail,readRegistrationInput} from './registration.ts';
-import type {EventType,IdentityDependencies} from './contracts.ts';
+import type {EventType,IdentityDependencies,PendingMail} from './contracts.ts';
+import {sealMailToken} from './mail-crypto.ts';
 export type PublicResult='accepted'|'invalid';
 export type SignInResult={status:'authenticated';session:string;expiresAt:Date}|{status:'denied'};
 const hours=(n:number)=>n*3600000;
+function notice(deps:IdentityDependencies,kind:PendingMail['kind'],recipient:string,rawToken:string,expiry:Date):PendingMail{
+ return {kind,recipient,sealedToken:sealMailToken(deps.mailEncryptionKey,kind,recipient,rawToken),expiresAt:expiry};
+}
 function clock(deps:IdentityDependencies):Date{const at=deps.now();if(!Number.isFinite(at.getTime()))throw Error('INVALID_SERVER_CLOCK');return at}
 function tokenDigest(kind:'session'|'email-verification'|'password-reset',raw:string):string|null{try{return digestOpaqueToken(kind,raw)}catch{return null}}
 async function allow(deps:IdentityDependencies,event:EventType,key:string,at:Date){return deps.db.allowAttempt({event,key,at})}
 /** New users remain unverified and inactive. Duplicate emails return the same public result.
- * Mail delivery follows a committed pending registration; resend provides recovery. */
+ * An encrypted email outbox item is persisted in the same transaction as the registration. */
 export async function register(deps:IdentityDependencies,raw:unknown):Promise<PublicResult>{
  const values=readRegistrationInput(raw);if(!values)return 'invalid';
  const at=clock(deps);
@@ -16,16 +20,16 @@ export async function register(deps:IdentityDependencies,raw:unknown):Promise<Pu
  const {password,...profile}=values;
  const passwordDigest=await hashPassword(password,deps.pepper);
  const token=issueOpaqueToken('email-verification');
- const outcome=await deps.db.createPending({profile,passwordDigest,verification:{digest:token.digest,expiresAt:new Date(at.getTime()+hours(24))},at});
- if(outcome==='created')await deps.mailer.verification(values.email,token.token);
+ const expiry=new Date(at.getTime()+hours(24));
+ await deps.db.createPending({profile,passwordDigest,verification:{digest:token.digest,expiresAt:expiry},notice:notice(deps,'verification',values.email,token.token,expiry),at});
  return 'accepted';
 }
 export async function resendVerification(deps:IdentityDependencies,rawEmail:unknown):Promise<PublicResult>{
  const email=normalizedEmail(rawEmail);if(!email)return 'invalid';
  const at=clock(deps);if(!await allow(deps,'resend',email,at))return 'accepted';
  const token=issueOpaqueToken('email-verification');
- const stored=await deps.db.resend({email,verification:{digest:token.digest,expiresAt:new Date(at.getTime()+hours(24))},at});
- if(stored)await deps.mailer.verification(email,token.token);
+ const expiry=new Date(at.getTime()+hours(24));
+ await deps.db.resend({email,verification:{digest:token.digest,expiresAt:expiry},notice:notice(deps,'verification',email,token.token,expiry),at});
  return 'accepted';
 }
 export async function verifyEmail(deps:IdentityDependencies,rawToken:string):Promise<boolean>{
@@ -59,8 +63,8 @@ export async function requestPasswordReset(deps:IdentityDependencies,rawEmail:un
  const email=normalizedEmail(rawEmail);if(!email)return 'invalid';
  const at=clock(deps);if(!await allow(deps,'recover',email,at))return 'accepted';
  const token=issueOpaqueToken('password-reset');
- const stored=await deps.db.beginReset({email,token:{digest:token.digest,expiresAt:new Date(at.getTime()+hours(0.5))},at});
- if(stored)await deps.mailer.passwordReset(email,token.token);
+ const expiry=new Date(at.getTime()+hours(0.5));
+ await deps.db.beginReset({email,token:{digest:token.digest,expiresAt:expiry},notice:notice(deps,'password-reset',email,token.token,expiry),at});
  return 'accepted';
 }
 /** Database MUST consume token, update password and revoke ALL sessions in one transaction. */
