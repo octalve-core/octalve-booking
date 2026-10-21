@@ -31,7 +31,8 @@ try{
  await link('Services');
  await click(page.getByRole('link',{name:/New service/}));
  await page.getByRole('textbox',{name:'Service title'}).fill('Free introductory call');actions++;
- await page.getByRole('spinbutton',{name:'Price (₦)'}).fill('0');actions++;
+ await page.getByRole('combobox',{name:'Payment policy'}).selectOption('Free');actions++;
+ if(await page.getByRole('spinbutton',{name:'Price (₦)'}).inputValue()!=='0')throw new Error('Free appointments must have a zero price');
  await click(page.getByRole('button',{name:'Add intake question'}));
  await page.getByRole('textbox',{name:'Question 1 label'}).fill('What outcome would be useful?');actions++;
  await page.getByRole('textbox',{name:'Question 1 help'}).fill('A brief business goal is enough.');actions++;
