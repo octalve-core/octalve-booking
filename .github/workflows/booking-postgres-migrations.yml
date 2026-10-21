@@ -97,6 +97,22 @@ jobs:
             exit 1
           fi
           echo "Trusted auth role can read auth only; cannot read bookings."
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install locked dependencies for real PostgreSQL adapter test
+        run: pnpm install --frozen-lockfile
+      - name: Verify real B2 PostgreSQL registration, verification, login and reset
+        env:
+          CI_POSTGRES_AUTH_TEST: '1'
+          BOOKING_CI_POSTGRES_URL: postgresql://booking_ci_identity:booking-ci-ephemeral-test-password@127.0.0.1:5432/booking_ci
+        run: node scripts/test-b2-postgres.mjs
+
 
 
       - name: Test atomic slot exclusion, tenant FKs and payment uniqueness
