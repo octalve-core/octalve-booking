@@ -23,7 +23,9 @@ export async function identityRuntime():Promise<IdentityDependencies|null>{
   const policy=await connection.query<{policy_count:number}>(`
     SELECT count(*)::int AS policy_count FROM pg_policies
     WHERE schemaname='booking_auth'`);
-  if((policy.rows[0]?.policy_count??0)<8)return null;
+  if((policy.rows[0]?.policy_count??0)<10)return null;
+  const membership=await connection.query<{permitted:boolean}>(`SELECT pg_has_role(current_user,'booking_identity_service','USAGE') AS permitted`);
+  if(membership.rows[0]?.permitted!==true)return null;
  }finally{connection.release()}
  return {
   db:createPgIdentityRepository(pool,{rateKeySecret:process.env.AUTH_RATE_KEY_SECRET!}),

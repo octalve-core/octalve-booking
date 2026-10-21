@@ -11,6 +11,7 @@ function requireConnectionString():string{
  if(url.searchParams.get('sslmode')!=='require'&&url.searchParams.get('sslmode')!=='verify-full')throw new Error('BOOKING_DATABASE_TLS_REQUIRED');
  return value;
 }
+export function identityPool():PgPool{return getBookingPgPool()}
 export function getBookingPgPool():PgPool{
  if(!instance)instance=new Pool({
   connectionString:requireConnectionString(),
