@@ -91,7 +91,7 @@ try{
  await fill(page.getByRole('textbox',{name:'Internal notes'}),'Reviewed through UI controls.');
  await click(page.getByRole('button',{name:/Save example enquiry/}));
  await click(page.getByRole('link',{name:'Back to enquiries'}));
- await click(page.getByRole('link',{name:'New enquiry'});await remember('New enquiry');
+ await click(page.getByRole('link',{name:'New enquiry'}));await remember('New enquiry');
  await click(page.getByRole('link',{name:'Back to enquiries'}));
  // Services list search/filter + new service + intake + catalogue state.
  await section('Services');
