@@ -13,7 +13,10 @@ for(const width of widths){
   await page.goto(base+'/?preview=1',{waitUntil:'networkidle'});
   async function check(label){
    const value=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth}));
-   if(value.scroll>value.client+1)throw new Error(label+' horizontal overflow '+JSON.stringify(value));
+   if(value.scroll>value.client+1){
+    const offenders=await page.evaluate(()=>Array.from(document.querySelectorAll('body *')).map(el=>({el,rect:el.getBoundingClientRect()})).filter(x=>x.rect.right>innerWidth+1&&x.rect.width>0).slice(0,12).map(x=>({tag:x.el.tagName,text:(x.el.textContent??'').trim().slice(0,55),classes:typeof x.el.className==='string'?x.el.className.slice(0,120):'',left:Math.round(x.rect.left),right:Math.round(x.rect.right)})));
+    throw new Error(label+' horizontal overflow '+JSON.stringify({value,offenders}));
+   }
   }
   await check('Dashboard');
   if(width<768){
@@ -39,7 +42,7 @@ for(const width of widths){
   const report={width,errors,passed:errors.length===0};
   if(errors.length)throw new Error(errors.join('; '));
   await page.screenshot({path:'browser-evidence/responsive-'+width+'.png',fullPage:true});results.push(report);
- }catch(error){failures.push({width,error:String(error),errors});results.push({width,passed:false})}
+ }catch(error){await page.screenshot({path:'browser-evidence/failure-'+width+'.png',fullPage:true}).catch(()=>{});failures.push({width,error:String(error),errors});results.push({width,passed:false})}
  finally{await context.close()}
 }
 await browser.close();
