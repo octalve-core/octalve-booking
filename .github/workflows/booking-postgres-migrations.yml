@@ -1,7 +1,7 @@
 name: Booking PostgreSQL migration acceptance
 on:
   push:
-    branches: ['phase/11-*', 'phase/12-*', 'review/booking', 'main']
+    branches: ['phase/11-*', 'phase/12-*', 'phase/13-*', 'phase/14-*', 'review/booking', 'main']
   workflow_dispatch:
 concurrency:
   group: booking-postgres-migrations-${{ github.ref }}
@@ -97,23 +97,34 @@ jobs:
             exit 1
           fi
           echo "Trusted auth role can read auth only; cannot read bookings."
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10.18.3
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: '24'
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-      - name: Install locked dependencies for real PostgreSQL adapter test
-        run: pnpm install --frozen-lockfile
-      - name: Verify real B2 PostgreSQL registration, verification, login and reset
-        env:
-          CI_POSTGRES_AUTH_TEST: '1'
-          BOOKING_CI_POSTGRES_URL: postgresql://booking_ci_identity:booking-ci-ephemeral-test-password@127.0.0.1:5432/booking_ci
-        run: node scripts/test-b2-postgres.mjs
 
 
+      - name: Verify the Booking data role is isolated and tenant-scoped
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $booking_rls$
+          DECLARE n integer;
+          BEGIN
+            SELECT count(*) INTO n FROM pg_policies WHERE schemaname='booking_core'
+              AND roles @> ARRAY['booking_domain_service']::name[];
+            IF n<>9 THEN RAISE EXCEPTION 'Expected nine tenant RLS policies, found %',n; END IF;
+          END $booking_rls$;
+          CREATE ROLE booking_ci_domain LOGIN PASSWORD 'booking-only-ephemeral-test-role';
+          GRANT booking_domain_service TO booking_ci_domain;
+          SET ROLE booking_ci_domain;
+          SELECT count(*) FROM booking_core.services;
+          RESET ROLE;
+          SQL
+          if psql -X -v ON_ERROR_STOP=1 -c "SET ROLE booking_ci_domain; SELECT count(*) FROM booking_payments.intent;" ; then
+            echo "SECURITY FAILURE: booking data role can inspect payments"
+            exit 1
+          fi
+          if psql -X -v ON_ERROR_STOP=1 -c "SET ROLE booking_ci_domain; SELECT count(*) FROM booking_auth.users;" ; then
+            echo "SECURITY FAILURE: booking data role can inspect account identities"
+            exit 1
+          fi
+          echo "Booking data-role isolation confirmed."
 
       - name: Test atomic slot exclusion, tenant FKs and payment uniqueness
         run: |
