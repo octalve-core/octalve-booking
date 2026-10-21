@@ -1,6 +1,6 @@
 import {createHmac} from 'node:crypto';
 import type {PgPool,PgConnection} from '../identity/postgres.ts';
-import {validateSlotTime,type AvailabilityWindow} from './slot-time.ts';
+import {requireUnambiguousUtc,validateSlotTime,type AvailabilityWindow} from './slot-time.ts';
 
 type SessionAuthority={userId:string;workspaceId:string};
 export type HoldInput={workspaceId:string;serviceId:string;staffId:string;clientId:string;localStart:string;idempotencyKey:string};
@@ -26,8 +26,8 @@ export async function makeStaffSlotHold(
   try{
    // One database transaction and one tenant ID for EVERY query, including queries on joins.
    await db.query(`SELECT set_config('booking.workspace_id',$1,true)`,[input.workspaceId]);
-   const repeat=await db.query<{id:string;claim_id:string;service_id:string;staff_id:string;client_id:string;starts_at:Date;hold_expires_at:Date}>(`
-    SELECT b.id,c.id AS claim_id,c.service_id,c.staff_id,c.client_id,c.starts_at,c.hold_expires_at
+   const repeat=await db.query<{id:string;claim_id:string;service_id:string;staff_id:string;client_id:string;starts_at:Date;hold_expires_at:Date|null;state:string}>(`
+    SELECT b.id,c.id AS claim_id,c.service_id,c.staff_id,c.client_id,c.starts_at,c.hold_expires_at,c.state
     FROM booking_core.slot_claims c JOIN booking_core.bookings b
       ON b.claim_id=c.id AND b.workspace_id=c.workspace_id
     WHERE c.workspace_id=$1 AND c.idempotency_digest=$2 LIMIT 1
@@ -36,11 +36,9 @@ export async function makeStaffSlotHold(
    if(matched){
     const slotTime=matched.starts_at instanceof Date?matched.starts_at:new Date(matched.starts_at);
     // Replays may not be repurposed to another client, staff, service or start.
-    const current=validateSlotTime(input.localStart,now,{
-      timezone,durationMinutes:30,bufferBeforeMinutes:0,bufferAfterMinutes:0,
-      minNoticeHours:0,maxAdvanceDays:365,windows:[{start:'00:00',end:'23:59'}]
-    });
-    if(matched.service_id!==input.serviceId||matched.staff_id!==input.staffId||matched.client_id!==input.clientId||slotTime.getTime()!==current.startsAt.getTime())throw Error('IDEMPOTENCY_REUSE');
+    const requestedStart=requireUnambiguousUtc(input.localStart,timezone);
+    if(matched.state!=='held'||!matched.hold_expires_at||new Date(matched.hold_expires_at)<=now)throw Error('IDEMPOTENCY_EXPIRED');
+    if(matched.service_id!==input.serviceId||matched.staff_id!==input.staffId||matched.client_id!==input.clientId||slotTime.getTime()!==requestedStart.getTime())throw Error('IDEMPOTENCY_REUSE');
     await db.query('COMMIT');
     return {status:'existing',bookingId:matched.id,claimId:matched.claim_id,expiresAt:new Date(matched.hold_expires_at)};
    }
