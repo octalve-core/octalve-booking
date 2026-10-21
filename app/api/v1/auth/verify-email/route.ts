@@ -1,3 +1,4 @@
-import {authUnavailable} from '@/src/server/identity/unavailable';
+import {authenticatedOperation} from '@/src/server/identity/http';
+import type {NextRequest} from 'next/server';
 export const runtime='nodejs';
-export const POST=authUnavailable;
+export function POST(request:NextRequest){return authenticatedOperation(request,'verify-email')}
