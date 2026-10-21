@@ -8,7 +8,9 @@ import {unsealMailToken} from '../src/server/identity/mail-crypto.ts';
 // Runs only with an ephemeral PostgreSQL CI database, never customer data.
 if(process.env.CI_POSTGRES_AUTH_TEST!=='1')throw Error('TEST_GUARD_REQUIRED');
 const url=process.env.BOOKING_CI_POSTGRES_URL;
-if(!url||!url.includes('booking_ci_identity@127.0.0.1'))throw Error('EPHEMERAL_DATABASE_ONLY');
+if(!url)throw Error('EPHEMERAL_DATABASE_ONLY');
+const parsed=new URL(url);
+if(parsed.username!=='booking_ci_identity'||parsed.hostname!=='127.0.0.1'||parsed.pathname!=='/booking_ci')throw Error('EPHEMERAL_DATABASE_ONLY');
 const raw=new Pool({connectionString:url,ssl:false,max:2});
 const pool={async connect(){
  const c=await raw.connect();
