@@ -46,6 +46,6 @@ test('imports reject unknown file extensions, oversized data and Excel formula i
  assert.equal(validateImportMetadata('data.exe',1024,'calendly_csv'),false);
  assert.equal(validateImportMetadata('schedule.ics',1024,'ics'),true);
  assert.equal(validateImportMetadata('sample.csv',5*1024*1024+1,'cal_com_csv'),false);
- assert.equal(escapeSpreadsheetCell('=HYPERLINK("evil")'),\x22'=HYPERLINK("evil")\x22);
+ assert.equal(escapeSpreadsheetCell('=HYPERLINK("evil")'),String.fromCharCode(39)+'=HYPERLINK("evil")');
  assert.equal(escapeSpreadsheetCell('Normal appointment'),'Normal appointment');
 });
