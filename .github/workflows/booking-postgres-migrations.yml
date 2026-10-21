@@ -73,6 +73,31 @@ jobs:
             exit 1
           fi
           echo "All migration checks passed: real PostgreSQL schema, forced RLS, denied public read, E.164 validation."
+      - name: Enforce separated trusted identity runtime role
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $auth_check$
+          DECLARE count_policy integer;
+          BEGIN
+            SELECT count(*) INTO count_policy FROM pg_policies
+            WHERE schemaname='booking_auth' AND roles @> ARRAY['booking_identity_service']::name[];
+            IF count_policy <> 10 THEN
+              RAISE EXCEPTION 'Expected exactly 10 trusted auth policies, found %', count_policy;
+            END IF;
+          END $auth_check$;
+          CREATE ROLE booking_ci_identity LOGIN PASSWORD 'booking-ci-ephemeral-test-password';
+          GRANT booking_identity_service TO booking_ci_identity;
+          SET ROLE booking_ci_identity;
+          SELECT count(*) FROM booking_auth.users;
+          RESET ROLE;
+          SQL
+          if psql -X -v ON_ERROR_STOP=1 -c "SET ROLE booking_ci_identity; SELECT count(*) FROM booking_core.bookings;"; then
+            echo "SECURITY FAILURE: identity runtime can read Booking tenant bookings."
+            exit 1
+          fi
+          echo "Trusted auth role can read auth only; cannot read bookings."
+
 
       - name: Test atomic slot exclusion, tenant FKs and payment uniqueness
         run: |

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
-const paths=['001_booking_auth.sql','002_booking_rate_limits.sql','003_booking_mail_outbox.sql','004_booking_engine.sql','005_booking_payments.sql','006_booking_integrations.sql'];
+const paths=['001_booking_auth.sql','002_booking_rate_limits.sql','003_booking_mail_outbox.sql','004_booking_engine.sql','005_booking_payments.sql','006_booking_integrations.sql','007_booking_identity_service_role.sql'];
 test('every identity migration is a single atomic transaction without trailing statements',()=>{
  for(const p of paths){
   const sql=readFileSync(new URL('../db/migrations/'+p,import.meta.url),'utf8');
