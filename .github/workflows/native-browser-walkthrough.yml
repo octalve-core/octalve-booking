@@ -1,7 +1,7 @@
 name: Booking native continuous browser journey
 on:
   push:
-    branches: ['review/booking', 'phase/05-booking-ui-parity-accessibility']
+    branches: ['review/booking', 'phase/05-booking-ui-parity-accessibility', 'phase/06-*']
   workflow_dispatch:
 concurrency:
   group: booking-native-browser-${{ github.ref }}
@@ -36,15 +36,8 @@ jobs:
           exit 1
       - name: Responsive and keyboard regression (320, 390, 768, 1440)
         run: node scripts/native-responsive-regression.mjs
-      - name: One continuous click-only walkthrough
+      - name: One continuous browser-only walkthrough (no recording)
         run: node scripts/native-browser-walkthrough.mjs
-      - name: Make MP4
-        if: success()
-        run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
-          input=$(find browser-evidence -maxdepth 1 -name '*.webm' -type f | head -1)
-          test -n "$input"
-          ffmpeg -hide_banner -loglevel error -y -i "$input" -movflags +faststart -pix_fmt yuv420p browser-evidence/Octalve_Booking_Native_Continuous_Walkthrough.mp4
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
