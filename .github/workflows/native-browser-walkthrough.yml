@@ -34,6 +34,8 @@ jobs:
           for i in $(seq 1 40); do if curl -fsS http://127.0.0.1:3000/ -o /dev/null; then exit 0; fi; sleep 2; done
           tail -100 /tmp/booking-next.log
           exit 1
+      - name: Responsive and keyboard regression (320, 390, 768, 1440)
+        run: node scripts/native-responsive-regression.mjs
       - name: One continuous click-only walkthrough
         run: node scripts/native-browser-walkthrough.mjs
       - name: Make MP4
