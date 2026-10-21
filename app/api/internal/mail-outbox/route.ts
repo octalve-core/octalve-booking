@@ -21,7 +21,7 @@ export async function POST(request:NextRequest){
   const pool=identityPool();
   const expired=await expireAuthOutbox(pool);
   const result=await dispatchAuthOutbox(pool,createResendAuthTransport(),{mailEncryptionKey:process.env.AUTH_MAIL_ENCRYPTION_KEY,batchSize:10});
-  return NextResponse.json({expired,...result},{headers:{'Cache-Control':'no-store'}});
+  return NextResponse.json({expiredBeforeDispatch:expired,...result},{headers:{'Cache-Control':'no-store'}});
  }catch{
   return NextResponse.json({code:'WORKER_UNAVAILABLE'},{status:503,headers:{'Cache-Control':'no-store'}});
  }
