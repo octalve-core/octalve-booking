@@ -11,7 +11,10 @@ test('every identity migration is a single atomic transaction without trailing s
   assert.equal(sql.trim().endsWith('COMMIT;'),true,p);
   assert.equal(sql.slice(sql.indexOf('COMMIT;')+7).trim(),'',
     p+' has statements after COMMIT, indicating duplicated or malformed SQL');
-  assert.match(sql,/FORCE ROW LEVEL SECURITY/,p);
+  if(p==='007_booking_identity_service_role.sql'){
+   assert.match(sql,/CREATE ROLE booking_identity_service NOLOGIN NOBYPASSRLS/);
+   assert.equal((sql.match(/CREATE POLICY booking_auth_server_/g)||[]).length,10);
+  }else assert.match(sql,/FORCE ROW LEVEL SECURITY/,p);
  }
 });
 test('booking identity foundation defines eight tables exactly once',()=>{
