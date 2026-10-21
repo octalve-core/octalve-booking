@@ -1,2 +1,2 @@
-import {CalendarPage} from "@/components/booking/WorkspaceViews";
-export default function Page(){return <CalendarPage/>}
+import {AvailabilitySettings} from '@/components/booking/AvailabilitySettings';
+export default function Page(){return <AvailabilitySettings/>}

@@ -1,2 +1,2 @@
-import {ServiceRecord} from "@/components/booking/WorkspaceViews";
-export default function Page(){return <ServiceRecord/>}
+import {ServiceEditor} from '@/components/booking/ServiceEditor';
+export default function Page(){return <ServiceEditor/>}

@@ -1,0 +1,14 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {validateWindows,validateAvailability} from '../src/booking/availability-rules.ts';
+const hours={0:[],1:[{start:'09:00',end:'17:00'}],2:[],3:[],4:[],5:[],6:[]};
+const base={timezone:'Africa/Lagos',bufferBefore:0,bufferAfter:15,minNoticeHours:24,maxAdvanceDays:60,overrides:[]};
+test('multiple non-overlapping windows are valid',()=>assert.equal(validateWindows([{start:'09:00',end:'12:00'},{start:'13:00',end:'17:00'}]),null));
+test('crossing time windows cannot be saved',()=>assert.match(validateWindows([{start:'09:00',end:'12:30'},{start:'12:00',end:'17:00'}]),/overlap/));
+test('end time cannot precede start',()=>assert.match(validateWindows([{start:'17:00',end:'09:00'}]),/start/));
+test('date overrides cannot conflict',()=>assert.match(validateAvailability(hours,{...base,overrides:[{id:'1',date:'2026-12-25',closed:true,windows:[],note:''},{id:'2',date:'2026-12-25',closed:false,windows:[{start:'09:00',end:'12:00'}],note:''}]}),/one override/));
+test('nonexistent dates fail validation',()=>assert.match(validateAvailability(hours,{...base,overrides:[{id:'1',date:'2026-02-30',closed:true,windows:[],note:''}]}),/calendar date/));
+test('closed day requires no windows',()=>assert.equal(validateAvailability(hours,{...base,overrides:[{id:'1',date:'2026-12-25',closed:true,windows:[],note:'Holiday'}]}),null));
+test('open override needs windows',()=>assert.match(validateAvailability(hours,{...base,overrides:[{id:'1',date:'2026-12-25',closed:false,windows:[],note:''}]}),/custom date/));
+test('policy rejects negative and fractional buffers',()=>assert.match(validateAvailability(hours,{...base,bufferBefore:-1}),/Buffers/));
+test('policy rejects zero max advance',()=>assert.match(validateAvailability(hours,{...base,maxAdvanceDays:0}),/Advance/));
