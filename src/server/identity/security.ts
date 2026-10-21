@@ -29,7 +29,7 @@ export async function verifyPassword(password:string,stored:string,pepper:string
  try{
   const salt=Buffer.from(parts[1],'base64url'),hash=Buffer.from(parts[2],'base64url');
   if(salt.length!==24||hash.length!==64)return false;
-  const candidate=await scrypt(keyedPassword(password,pepper),salt,64,workFactor) as Buffer;
+  const candidate=await derivePasswordDigest(keyedPassword(password,pepper),salt);
   return timingSafeEqual(hash,candidate);
  }catch{return false}
 }
