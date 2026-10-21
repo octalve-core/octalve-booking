@@ -1,7 +1,7 @@
 name: Booking native continuous browser journey
 on:
   push:
-    branches: ['review/booking', 'phase/05-booking-ui-parity-accessibility', 'phase/06-*', 'phase/07-*', 'phase/08-*', 'phase/09-*']
+    branches: ['review/booking', 'phase/05-booking-ui-parity-accessibility', 'phase/06-*', 'phase/07-*', 'phase/08-*', 'phase/09-*', 'phase/10-*']
   workflow_dispatch:
 concurrency:
   group: booking-native-browser-${{ github.ref }}
