@@ -65,7 +65,7 @@ try{
  await click(page.getByRole('link',{name:'Cancel',exact:true}));
  // Client search + edit.
  await section('Clients');
- await fill(page.getByRole('textbox',{name:'Search clients'}),'CL-0001');await expectText('Amara Okafor');
+ await fill(page.getByRole('textbox',{name:'Search clients'}),'CL-0001');await page.getByRole('link',{name:'Amara Okafor'}).waitFor();checks++;
  await resetSearch('Search clients');
  await fill(page.getByRole('textbox',{name:'Search clients'}),'___none___');
  await page.getByText('No matching clients').waitFor();checks++;
