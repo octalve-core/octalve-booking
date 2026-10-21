@@ -1,7 +1,7 @@
 name: Booking native continuous browser journey
 on:
   push:
-    branches: ['review/booking', 'phase/05-booking-ui-parity-accessibility', 'phase/06-*']
+    branches: ['review/booking', 'phase/05-booking-ui-parity-accessibility', 'phase/06-*', 'phase/07-*']
   workflow_dispatch:
 concurrency:
   group: booking-native-browser-${{ github.ref }}
@@ -36,6 +36,8 @@ jobs:
           exit 1
       - name: Responsive and keyboard regression (320, 390, 768, 1440)
         run: node scripts/native-responsive-regression.mjs
+      - name: Auth and sidebar responsive browser journey
+        run: node scripts/native-auth-browser-check.mjs
       - name: One continuous browser-only walkthrough (no recording)
         run: node scripts/native-browser-walkthrough.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
