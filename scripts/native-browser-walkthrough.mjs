@@ -158,6 +158,14 @@ try{
  await section('Reports');await page.getByRole('heading',{name:'Reports'}).waitFor();checks++;
  await section('Settings');await page.getByRole('heading',{name:'Settings'}).waitFor();checks++;
  await click(page.getByRole('link',{name:/Account & security/}));await remember('Security profile');
+ await click(page.getByRole('link',{name:'Sign in'}));await remember('Sign-in via Account');
+ await page.getByRole('heading',{name:'Welcome back!'}).waitFor();checks++;
+ await click(page.getByRole('link',{name:'Create an account'}));await remember('Sign-up');
+ await page.getByRole('heading',{name:'Create your booking workspace'}).waitFor();checks++;
+ await click(page.getByRole('link',{name:'Sign in',exact:true}));await remember('Sign-in return');
+ await click(page.getByRole('link',{name:'Forgot password?'}));await remember('Password recovery');
+ await click(page.getByRole('link',{name:'Back to sign in'}));
+ await click(page.getByRole('link',{name:'Back to workspace'}));
  await section('Get started');await page.getByText('Live booking readiness:',{exact:false}).waitFor();checks++;
  await click(page.getByRole('link',{name:/7\. Review the public booking journey/}));await remember('Public booking journey');
  // The public page is the last stop: choose a date/time, fill fields; never submit.

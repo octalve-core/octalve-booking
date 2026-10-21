@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import {useState,type FormEvent,type ReactNode} from 'react';
-import {ArrowLeft,ArrowRight,CalendarCheck,Eye,EyeOff,LockKeyhole,Mail,ShieldCheck} from 'lucide-react';
+import {ArrowLeft,ArrowRight,CalendarCheck,Eye,EyeOff,Mail} from 'lucide-react';
 
 type AuthMode='signin'|'signup'|'reset';
 const field='mt-1.5 h-11 w-full rounded-xl border border-[#e3e9f1] bg-white px-3.5 text-[13px] text-[#213854] outline-none transition placeholder:text-slate-400 focus:border-[#0064E0] focus:ring-2 focus:ring-blue-100';
