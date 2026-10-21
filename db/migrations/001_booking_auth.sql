@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS booking_auth.users (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  email citext NOT NULL UNIQUE,
  full_name text NOT NULL CHECK (length(btrim(full_name)) BETWEEN 2 AND 120),
- phone_e164 text CHECK (phone_e164 ~ '^\+[1-9][0-9]{6,14}),
+ phone_e164 text CHECK (phone_e164 ~ '^\+[1-9][0-9]{6,14}$'),
  password_digest text, -- hashed with server-only scrypt+pepper, NEVER plain text
  verified_at timestamptz,
  disabled_at timestamptz,
