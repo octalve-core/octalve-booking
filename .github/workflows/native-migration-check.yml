@@ -1,7 +1,7 @@
 name: Booking native conversion qualification
 on:
   push:
-    branches: ['phase/04-native-nextjs-conversion', 'phase/05-*', 'phase/06-*']
+    branches: ['phase/04-native-nextjs-conversion', 'phase/05-*', 'phase/06-*', 'demo/booking']
   workflow_dispatch:
 concurrency:
   group: booking-native-qualification-${{ github.ref }}

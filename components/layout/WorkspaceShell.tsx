@@ -1,6 +1,6 @@
 'use client';
 import {type ReactNode,useState} from 'react';
-import {usePathname,useSearchParams} from 'next/navigation';
+import {usePathname} from 'next/navigation';
 import {CalendarCheck,CalendarDays,BriefcaseBusiness,ClipboardList,UsersRound,Wallet,PlugZap,ChartNoAxesCombined,ListChecks,Settings2,House,Grid2X2,UserRound,ChevronDown,ExternalLink,ShieldCheck,Search,X} from 'lucide-react';
 import {BookingStore,useBookingStore} from '@/src/booking/store';
 import {moduleRoutes} from '@/src/booking/routes';
@@ -44,5 +44,5 @@ function Interior({children}:{children:ReactNode}){
  </div>
 }
 export function WorkspaceShell({children}:{children:ReactNode}){
- const search=useSearchParams();const preview=true;return <BookingStore key={preview?'preview':'connected'} preview={preview}><Interior>{children}</Interior></BookingStore>;
+ const preview=true;return <BookingStore key={preview?'preview':'connected'} preview={preview}><Interior>{children}</Interior></BookingStore>;
 }
