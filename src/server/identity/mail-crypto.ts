@@ -22,7 +22,7 @@ export function unsealMailToken(key:string,kind:MailKind,recipient:string,sealed
  const [version,ivText,cipherText,tagText]=sealed.split('.');
  if(version!=='v1')throw new Error('INVALID_AUTH_MAIL');
  const iv=Buffer.from(ivText,'base64url'),encrypted=Buffer.from(cipherText,'base64url'),tag=Buffer.from(tagText,'base64url');
- if(iv.length!==12||tag.length!==16||encrypted.length!==32)throw new Error('INVALID_AUTH_MAIL');
+ if(iv.length!==12||tag.length!==16||encrypted.length!==43)throw new Error('INVALID_AUTH_MAIL');
  try{
   const decipher=createDecipheriv('aes-256-gcm',decodeMailKey(key),iv);
   decipher.setAAD(aad(kind,recipient));
