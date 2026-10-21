@@ -1,7 +1,7 @@
 name: Booking PostgreSQL migration acceptance
 on:
   push:
-    branches: ['phase/11-*', 'review/booking', 'main']
+    branches: ['phase/11-*', 'phase/12-*', 'review/booking', 'main']
   workflow_dispatch:
 concurrency:
   group: booking-postgres-migrations-${{ github.ref }}
@@ -52,13 +52,13 @@ jobs:
           DO $$
           DECLARE n integer;
           BEGIN
-            SELECT count(*) INTO n FROM pg_tables WHERE schemaname='booking_auth';
-            IF n != 10 THEN RAISE EXCEPTION 'Expected 10 tables, found %', n; END IF;
+            SELECT count(*) INTO n FROM pg_tables WHERE schemaname IN ('booking_auth','booking_core','booking_payments','booking_integrations');
+            IF n != 27 THEN RAISE EXCEPTION 'Expected 27 tables, found %', n; END IF;
             SELECT count(*) INTO n FROM pg_class c
             JOIN pg_namespace ns ON ns.oid=c.relnamespace
-            WHERE ns.nspname='booking_auth' AND c.relkind='r'
+            WHERE ns.nspname IN ('booking_auth','booking_core','booking_payments','booking_integrations') AND c.relkind='r'
              AND c.relrowsecurity AND c.relforcerowsecurity;
-            IF n != 10 THEN RAISE EXCEPTION 'Expected FORCE RLS on 10 tables, found %', n; END IF;
+            IF n != 27 THEN RAISE EXCEPTION 'Expected FORCE RLS on 27 tables, found %', n; END IF;
           END $$;
           INSERT INTO booking_auth.users(email,full_name,phone_e164)
             VALUES ('valid@booking.example','Booking Example','+2348012345678');
@@ -73,3 +73,45 @@ jobs:
             exit 1
           fi
           echo "All migration checks passed: real PostgreSQL schema, forced RLS, denied public read, E.164 validation."
+
+      - name: Test atomic slot exclusion, tenant FKs and payment uniqueness
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $
+          DECLARE
+           w uuid;svc uuid;staff uuid;customer uuid;slot uuid;
+          BEGIN
+           INSERT INTO booking_auth.workspaces(name,slug,kind)
+             VALUES('Acceptance Workspace','ci-acceptance','business') RETURNING id INTO w;
+           INSERT INTO booking_core.services(workspace_id,name,duration_minutes,payment_policy,price_minor)
+             VALUES(w,'Intro Call',30,'free',0) RETURNING id INTO svc;
+           INSERT INTO booking_core.staff(workspace_id,display_name)
+             VALUES(w,'Staff Member') RETURNING id INTO staff;
+           INSERT INTO booking_core.clients(workspace_id,full_name,email)
+             VALUES(w,'Test Client','test-client@invalid.example') RETURNING id INTO customer;
+           INSERT INTO booking_core.slot_claims(workspace_id,service_id,staff_id,client_id,starts_at,ends_at,
+             occupied_range,hold_expires_at,idempotency_digest)
+             VALUES(w,svc,staff,customer,'2026-12-01 10:00+00','2026-12-01 10:30+00',
+                tstzrange('2026-12-01 09:50+00','2026-12-01 10:40+00','[)'),
+                '2026-12-01 09:59+00',repeat('a',64)) RETURNING id INTO slot;
+           BEGIN
+            INSERT INTO booking_core.slot_claims(workspace_id,service_id,staff_id,client_id,starts_at,ends_at,
+              occupied_range,hold_expires_at,idempotency_digest)
+              VALUES(w,svc,staff,customer,'2026-12-01 10:30+00','2026-12-01 11:00+00',
+                tstzrange('2026-12-01 10:30+00','2026-12-01 11:00+00','[)'),
+                '2026-12-01 10:29+00',repeat('b',64));
+            RAISE EXCEPTION 'Double booking overlap unexpectedly permitted';
+           EXCEPTION WHEN exclusion_violation THEN
+            NULL;
+           END;
+           UPDATE booking_core.slot_claims SET state='released' WHERE id=slot;
+           INSERT INTO booking_core.slot_claims(workspace_id,service_id,staff_id,client_id,starts_at,ends_at,
+             occupied_range,hold_expires_at,idempotency_digest)
+             VALUES(w,svc,staff,customer,'2026-12-01 10:30+00','2026-12-01 11:00+00',
+                tstzrange('2026-12-01 10:30+00','2026-12-01 11:00+00','[)'),
+                '2026-12-01 10:29+00',repeat('c',64));
+          END $;
+          SQL
+          echo "Booking slot overlap and release tests passed."
+
