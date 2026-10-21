@@ -1,10 +1,29 @@
 'use client';
 import Link from 'next/link';
 import {useSearchParams} from 'next/navigation';
-import {useState,type FormEvent,type ReactNode} from 'react';
+import {useEffect,useState,type FormEvent,type ReactNode} from 'react';
 import {ArrowLeft,ArrowRight,CalendarCheck,Eye,EyeOff,Mail} from 'lucide-react';
 
 type AuthMode='signin'|'signup'|'reset';
+function useAccountServiceReady():boolean{
+ const [ready,setReady]=useState(false);
+ useEffect(()=>{
+  let active=true;
+  fetch('/api/v1/auth/status',{cache:'no-store'}).then(async response=>{
+   if(!response.ok)return;
+   const data=await response.json() as {available?:boolean};
+   if(active)setReady(data.available===true);
+  }).catch(()=>{});
+  return ()=>{active=false};
+ },[]);
+ return ready;
+}
+async function postAccount(path:string,data:Record<string,unknown>):Promise<boolean>{
+ try{
+  const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data),cache:'no-store'});
+  return response.ok;
+ }catch{return false}
+}
 const field='mt-1.5 h-11 w-full rounded-xl border border-[#e3e9f1] bg-white px-3.5 text-[13px] text-[#213854] outline-none transition placeholder:text-slate-400 focus:border-[#0064E0] focus:ring-2 focus:ring-blue-100';
 const countryCodes=[
  ['Nigeria','NG','+234'],['Ghana','GH','+233'],['United Kingdom','GB','+44'],['United States','US','+1'],['Canada','CA','+1'],['South Africa','ZA','+27'],['Kenya','KE','+254'],['Uganda','UG','+256'],['Tanzania','TZ','+255'],['Rwanda','RW','+250'],['Cameroon','CM','+237'],['Benin','BJ','+229'],['Togo','TG','+228'],['Niger','NE','+227'],['Senegal','SN','+221'],['Côte d’Ivoire','CI','+225'],['Egypt','EG','+20'],['Morocco','MA','+212'],['Ethiopia','ET','+251'],['United Arab Emirates','AE','+971'],['Saudi Arabia','SA','+966'],['Qatar','QA','+974'],['India','IN','+91'],['Pakistan','PK','+92'],['China','CN','+86'],['Japan','JP','+81'],['Australia','AU','+61'],['New Zealand','NZ','+64'],['Germany','DE','+49'],['France','FR','+33'],['Netherlands','NL','+31'],['Belgium','BE','+32'],['Ireland','IE','+353'],['Italy','IT','+39'],['Spain','ES','+34'],['Portugal','PT','+351'],['Brazil','BR','+55'],['Mexico','MX','+52'],['Turkey','TR','+90'],['Indonesia','ID','+62'],['Malaysia','MY','+60'],['Singapore','SG','+65'],['Philippines','PH','+63']
@@ -30,7 +49,14 @@ function FormNotice({message}:{message:string}){return message?<p role="status" 
 function Heading({title,description}:{title:string;description:string}){return <div className="mb-6 text-center"><h1 className="text-[22px] font-extrabold tracking-tight text-[#163250]">{title}</h1><p className="mt-2 text-[12px] leading-5 text-[#8192a7]">{description}</p></div>}
 function SignIn({suffix}:{suffix:string}){
  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[remember,setRemember]=useState(false),[message,setMessage]=useState('');
- function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setPassword('');setMessage('Account sign-in is being connected to secure authentication. No credentials were sent or saved.');}
+ const enabled=useAccountServiceReady();
+ async function submit(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();
+  if(!enabled){setPassword('');setMessage('Account sign-in is being connected to secure authentication. No credentials were sent or saved.');return;}
+  const ok=await postAccount('/api/v1/auth/login',{email,password});
+  setPassword('');
+  setMessage(ok?'You are signed in. Continue to your workspace.':'Unable to sign in. Check your account and email verification.');
+ }
  return <AuthShell returnHref={'/'+suffix}><Heading title="Welcome back!" description="Sign in to manage your appointments and clients."/>
   <form onSubmit={submit} className="space-y-4"><Field label="Email address"><input className={field} type="email" autoComplete="username" required aria-label="Email address" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@business.com"/></Field>
    <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="current-password"/>
@@ -46,7 +72,19 @@ function SignUp({suffix}:{suffix:string}){
  const [password,setPassword]=useState(''),[confirm,setConfirm]=useState(''),[expanded,setExpanded]=useState(false),[businessName,setBusinessName]=useState(''),[website,setWebsite]=useState(''),[timezone,setTimezone]=useState('Africa/Lagos'),[currency,setCurrency]=useState('NGN'),[agreed,setAgreed]=useState(false),[message,setMessage]=useState('');
  const code=countryCodes.find(c=>c[1]===country)?.[2]??'+234';
  const validPass=password.length>=15&&password.length<=128;
- function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();const digits=phone.replace(/\D/g,'');if(phone&&(!/^\d+$/.test(phone)||digits.length<6||digits.length>14||digits.startsWith('0'))){setMessage('Enter your local phone number without the international code or leading zero.');return;}if(!validPass){setMessage('Use a password of at least 15 characters.');return;}if(password!==confirm){setMessage('Passwords do not match.');return;}if(!agreed){setMessage('Please review the privacy and terms notices first.');return;}setPassword('');setConfirm('');setMessage('The account form is ready for backend connection. No account, password or phone number was submitted or stored.');}
+ const enabled=useAccountServiceReady();
+ async function submit(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();
+  const digits=phone.replace(/\D/g,'').replace(/^0/,'');
+  if(phone&&(!/^\d+$/.test(phone)||digits.length<6||digits.length>14)){setMessage('Enter a valid local phone number.');return;}
+  if(!validPass){setMessage('Use a password of at least 15 characters.');return;}
+  if(password!==confirm){setMessage('Passwords do not match.');return;}
+  if(!agreed){setMessage('Please review the privacy and terms notices first.');return;}
+  if(!enabled){setPassword('');setConfirm('');setMessage('The account form is ready for backend connection. No account, password or phone number was submitted or stored.');return;}
+  const ok=await postAccount('/api/v1/auth/register',{kind:kind.toLowerCase(),fullName,email,password,phoneE164:phone?code+digits:undefined,businessName:businessName||undefined,website:website||undefined,timezone,currency});
+  setPassword('');setConfirm('');
+  setMessage(ok?'Check your inbox for a verification link.':'Unable to register. Check your details or try again.');
+ }
  return <AuthShell wide returnHref={'/'+suffix}><Heading title="Create your booking workspace" description="A few details to get started. Set up the rest whenever you're ready."/>
   <form onSubmit={submit} className="space-y-4">
    <fieldset><legend className="mb-2 text-[12px] font-semibold text-[#344b67]">Workspace type</legend><div className="grid grid-cols-2 gap-2">{(['Business','Individual'] as const).map(v=><label key={v} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 text-[12px] font-semibold transition ${kind===v?'border-[#0064E0] bg-[#f3f8ff] text-[#0064E0]':'border-[#e4eaf2] text-[#667d97] hover:border-[#b7cee9]'}`}><input type="radio" name="workspaceType" value={v} checked={kind===v} onChange={()=>setKind(v)} className="size-4 accent-[#0064E0]"/>{v==='Business'?'Business / team':'Just me'}</label>)}</div></fieldset>
@@ -65,7 +103,13 @@ function SignUp({suffix}:{suffix:string}){
 }
 function Reset({suffix}:{suffix:string}){
  const [email,setEmail]=useState(''),[message,setMessage]=useState('');
- function submit(e:FormEvent<HTMLFormElement>){e.preventDefault();setMessage('Password recovery will be enabled with secure account email delivery. No reset email was sent.');}
+ const enabled=useAccountServiceReady();
+ async function submit(e:FormEvent<HTMLFormElement>){
+  e.preventDefault();
+  if(!enabled){setMessage('Password recovery will be enabled with secure account email delivery. No reset email was sent.');return;}
+  await postAccount('/api/v1/auth/forgot-password',{email});
+  setMessage('If this account exists, password recovery instructions will arrive by email.');
+ }
  return <AuthShell returnHref={'/'+suffix}><Heading title="Reset your password" description="Enter your account email to request a password reset."/><form onSubmit={submit} className="space-y-4"><Field label="Email address"><input aria-label="Email address" className={field} type="email" required autoComplete="email" placeholder="you@business.com" value={email} onChange={e=>setEmail(e.target.value)}/></Field><FormNotice message={message}/><button type="submit" className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0064E0] text-xs font-bold text-white hover:bg-[#0052B8]">Send reset link<Mail size={16}/></button></form><Link href={"/signin"+suffix} className="mt-5 flex items-center justify-center gap-2 text-xs font-semibold text-[#0064E0] hover:underline"><ArrowLeft size={15}/>Back to sign in</Link></AuthShell>;
 }
 export function AuthPage({mode}:{mode:AuthMode}){const params=useSearchParams();const suffix=params.get('preview')==='1'?'?preview=1':'';return mode==='signin'?<SignIn suffix={suffix}/>:mode==='signup'?<SignUp suffix={suffix}/>:<Reset suffix={suffix}/>;}
