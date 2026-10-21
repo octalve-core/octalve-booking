@@ -78,7 +78,7 @@ jobs:
         run: |
           set -euo pipefail
           psql -X -v ON_ERROR_STOP=1 <<'SQL'
-          DO $
+          DO $slot_check$
           DECLARE
            w uuid;svc uuid;staff uuid;customer uuid;slot uuid;
           BEGIN
@@ -111,7 +111,7 @@ jobs:
              VALUES(w,svc,staff,customer,'2026-12-01 10:30+00','2026-12-01 11:00+00',
                 tstzrange('2026-12-01 10:30+00','2026-12-01 11:00+00','[)'),
                 '2026-12-01 10:29+00',repeat('c',64));
-          END $;
+          END $slot_check$;
           SQL
           echo "Booking slot overlap and release tests passed."
 
