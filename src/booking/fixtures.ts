@@ -23,6 +23,7 @@ export const exampleRecords:AppRecordState={
   {id:'ENQ-0002',clientId:'CL-0002',subject:'Website project scope',brief:'Planning a new services website and cost estimation.',status:'New',notes:''},
   {id:'ENQ-0003',clientId:'CL-0004',subject:'Market assessment',brief:'Need guidance on target market and implementation.',status:'Qualified',notes:''}
  ],
+ availability:{timezone:'Africa/Lagos',bufferBefore:0,bufferAfter:15,minNoticeHours:24,maxAdvanceDays:60,overrides:[]},
  hours:{0:[],1:[{start:'09:00',end:'17:00'}],2:[{start:'09:00',end:'17:00'}],3:[{start:'09:00',end:'17:00'}],4:[{start:'09:00',end:'17:00'}],5:[{start:'09:00',end:'16:00'}],6:[]}
 };
-export function emptyRecords():AppRecordState {return {bookings:[],clients:[],enquiries:[],services:[],hours:structuredClone(exampleRecords.hours)}};
+export function emptyRecords():AppRecordState {return {bookings:[],clients:[],enquiries:[],services:[],hours:structuredClone(exampleRecords.hours),availability:structuredClone(exampleRecords.availability)}};
