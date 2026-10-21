@@ -124,3 +124,9 @@ test('identity migration remains private with RLS and non-public app permissions
   assert.match(sql,/REVOKE ALL/);
  }
 });
+
+test('E.164 CHECK in Booking SQL migration uses the single regex escape for a literal plus',()=>{
+ const migration=readFileSync(new URL('../db/migrations/001_booking_auth.sql',import.meta.url),'utf8');
+ assert.ok(migration.includes(String.raw`phone_e164 ~ '^\+[1-9][0-9]{6,14}$'`));
+ assert.equal(migration.includes(String.raw`phone_e164 ~ '^\\+[1-9][0-9]{6,14}$'`),false);
+});
