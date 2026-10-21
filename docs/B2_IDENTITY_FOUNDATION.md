@@ -30,4 +30,4 @@ State: **Foundation only. Not enabled for customer accounts.**
 9. Full CI, dependency audit, independent security tests and Vercel private Git project linkage check. Do not enable account submit buttons prematurely.
 
 ## Policy note
-Session cookies follow Next.js 16 server-only cookie controls; use `await cookies()` in Route Handlers. Password design follows NIST SP 800-63B minimum passphrase guidance and stores only a salted, memory-hard digest; 15-character sign-up UI alignment is a separate future step.
+Session cookies follow Next.js 16 server-only cookie controls; use `await cookies()` in Route Handlers. Password design follows NIST SP 800-63B minimum passphrase guidance and stores only a salted, memory-hard digest; The sign-up UI now enforces the same 15-character minimum as the server-side registration validator.

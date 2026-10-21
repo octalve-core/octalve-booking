@@ -88,6 +88,9 @@ CREATE TABLE IF NOT EXISTS booking_auth.auth_events (
  source_ip_digest char(64)
 );
 -- Explicitly deny direct access from any public/browser-connected database role.
+REVOKE ALL ON SCHEMA booking_auth FROM PUBLIC;
+REVOKE ALL ON ALL TABLES IN SCHEMA booking_auth FROM PUBLIC;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA booking_auth FROM PUBLIC;
 -- Application queries must be performed by a trusted server using scoped membership verification.
 ALTER TABLE booking_auth.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE booking_auth.workspaces ENABLE ROW LEVEL SECURITY;
@@ -97,4 +100,12 @@ ALTER TABLE booking_auth.one_time_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE booking_auth.oauth_identities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE booking_auth.invitations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE booking_auth.auth_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE booking_auth.users FORCE ROW LEVEL SECURITY;
+ALTER TABLE booking_auth.workspaces FORCE ROW LEVEL SECURITY;
+ALTER TABLE booking_auth.memberships FORCE ROW LEVEL SECURITY;
+ALTER TABLE booking_auth.sessions FORCE ROW LEVEL SECURITY;
+ALTER TABLE booking_auth.one_time_tokens FORCE ROW LEVEL SECURITY;
+ALTER TABLE booking_auth.oauth_identities FORCE ROW LEVEL SECURITY;
+ALTER TABLE booking_auth.invitations FORCE ROW LEVEL SECURITY;
+ALTER TABLE booking_auth.auth_events FORCE ROW LEVEL SECURITY;
 COMMIT;
