@@ -15,14 +15,14 @@ for(const width of widths){
   else {await step(page.getByRole('button',{name:'Account options'}));await step(page.getByRole('link',{name:'Sign in'}))}
   await page.getByRole('heading',{name:'Welcome back!'}).waitFor();
   await page.getByRole('textbox',{name:'Email address'}).fill('review@example.invalid');
-  await page.getByRole('textbox',{name:'Password'}).fill('NotASubmittedPassword123!');
+  await page.getByLabel('Password',{exact:true}).fill('NotASubmittedPassword123!');
   await step(page.getByRole('button',{name:'Show password'}));
-  if(await page.getByRole('textbox',{name:'Password'}).getAttribute('type')!=='text')throw Error('Show password did not work');
+  if(await page.getByLabel('Password',{exact:true}).getAttribute('type')!=='text')throw Error('Show password did not work');
   await step(page.getByRole('button',{name:'Hide password'}));
   await page.getByRole('checkbox',{name:'Remember me'}).check();
   await step(page.getByRole('button',{name:'Sign in',exact:true}));
   await page.getByText('No credentials were sent or saved.',{exact:false}).waitFor();
-  if(await page.getByRole('textbox',{name:'Password'}).inputValue())throw Error('Password field must clear after attempted sign-in');
+  if(await page.getByLabel('Password',{exact:true}).inputValue())throw Error('Password field must clear after attempted sign-in');
   await step(page.getByRole('link',{name:'Forgot password?'}));
   await page.getByRole('heading',{name:'Reset your password'}).waitFor();
   await page.getByRole('textbox',{name:'Email address'}).fill('review@example.invalid');
@@ -44,15 +44,15 @@ for(const width of widths){
   await page.getByRole('textbox',{name:'Full name'}).fill('Sample Reviewer');
   await page.getByRole('textbox',{name:'Email address'}).fill('review@example.invalid');
   await page.getByRole('textbox',{name:'Local phone number'}).fill('7700900123');
-  await page.getByRole('textbox',{name:'Create password'}).fill('StrongerPassword123');
-  await page.getByRole('textbox',{name:'Confirm password'}).fill('DifferentPassword123');
+  await page.getByLabel('Create password',{exact:true}).fill('StrongerPassword123');
+  await page.getByLabel('Confirm password',{exact:true}).fill('DifferentPassword123');
   await page.getByRole('checkbox',{name:/I have reviewed/}).check();
   await step(page.getByRole('button',{name:'Create account',exact:true}));
   await page.getByText('Passwords do not match.',{exact:true}).waitFor();
-  await page.getByRole('textbox',{name:'Confirm password'}).fill('StrongerPassword123');
+  await page.getByLabel('Confirm password',{exact:true}).fill('StrongerPassword123');
   await step(page.getByRole('button',{name:'Create account',exact:true}));
   await page.getByText('No account, password or phone number was submitted or stored.',{exact:false}).waitFor();
-  if(await page.getByRole('textbox',{name:'Create password'}).inputValue())throw Error('Password must clear after signup submit');
+  if(await page.getByLabel('Create password',{exact:true}).inputValue())throw Error('Password must clear after signup submit');
   await step(page.getByRole('link',{name:'Privacy notice'}));
   await page.getByRole('heading',{name:'Privacy — preparation notice'}).waitFor();
   await step(page.getByRole('link',{name:'Back to sign up'}));
