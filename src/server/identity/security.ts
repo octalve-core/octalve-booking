@@ -1,10 +1,10 @@
-import {createHash,createHmac,randomBytes,scrypt as scryptCallback,timingSafeEqual} from 'node:crypto';
-import {promisify} from 'node:util';
-
-const scrypt=promisify(scryptCallback);
+import {createHash,createHmac,randomBytes,scrypt,timingSafeEqual} from 'node:crypto';
 const workFactor={N:32768,r:8,p:1,maxmem:64*1024*1024} as const;
 const hashScheme='booking-scrypt-v1';
 const SESSION_BYTES=32;
+function derivePasswordDigest(keyed:Buffer,salt:Buffer):Promise<Buffer>{
+ return new Promise<Buffer>((resolve,reject)=>scrypt(keyed,salt,64,workFactor,(error,derived)=>error?reject(error):resolve(derived)));
+}
 function secretBuffer(value:string):Buffer {
  if(typeof value!=='string'||Buffer.byteLength(value,'utf8')<32)throw new Error('SERVER_SECRET_NOT_CONFIGURED');
  return Buffer.from(value,'utf8');
@@ -19,7 +19,7 @@ function keyedPassword(password:string,pepper:string):Buffer {
 export async function hashPassword(password:string,pepper:string):Promise<string>{
  if(!validatePassword(password))throw new Error('INVALID_PASSWORD');
  const salt=randomBytes(24);
- const derived=await scrypt(keyedPassword(password,pepper),salt,64,workFactor) as Buffer;
+ const derived=await derivePasswordDigest(keyedPassword(password,pepper),salt);
  return [hashScheme,salt.toString('base64url'),derived.toString('base64url')].join('$');
 }
 export async function verifyPassword(password:string,stored:string,pepper:string):Promise<boolean>{
