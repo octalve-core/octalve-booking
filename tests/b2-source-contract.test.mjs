@@ -12,16 +12,26 @@ test('B2 schema is isolated with foreign keys and deny-by-default RLS',()=>{
  assert.match(sql,/UNIQUE\(provider,user_id\)/);
  assert.doesNotMatch(sql,/octalve[_-](?:invoice|emr)|finance|patients/i);
 });
-test('B2 authentication routes always fail closed until provisioned',()=>{
+test('B2 routes are guarded by server-side configuration and retain explicit disabled Google flow',()=>{
  const shared=read('../src/server/identity/unavailable.ts');
+ const runtime=read('../src/server/identity/runtime.ts');
+ const http=read('../src/server/identity/http.ts');
  assert.match(shared,/status:503/);
  assert.match(shared,/no-store/);
- for(const route of ['register','login','forgot-password','reset-password','verify-email','google']){
+ assert.match(runtime,/requestedFeature\('auth'\)/);
+ assert.match(runtime,/rolbypassrls AS bypassrls/);
+ assert.match(runtime,/policy_count/);
+ assert.match(http,/identityRuntime\(\)\.catch/);
+ assert.match(http,/trustedMutationOrigin/);
+ assert.match(http,/authUnavailable/);
+ for(const route of ['register','login','forgot-password','reset-password','verify-email','resend-verification','logout']){
   const r=read('../app/api/v1/auth/'+route+'/route.ts');
-  assert.match(r,/authUnavailable/);
-  assert.doesNotMatch(r,/cookies\(\)\.set|status:200|success:true/);
+  assert.match(r,/authenticatedOperation/);
+  assert.doesNotMatch(r,/cookies\(\)\.set|success:true/);
  }
+ assert.match(read('../app/api/v1/auth/google/route.ts'),/authUnavailable/);
 });
+
 test('B2 workspace page remains separate from demo and public booking authority',()=>{
  assert.match(read('../src/server/identity/policy.ts'),/WORKSPACE_ACCESS_DENIED/);
  assert.match(read('../src/server/identity/security.ts'),/timingSafeEqual/);
