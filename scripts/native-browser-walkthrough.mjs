@@ -38,7 +38,7 @@ try{
  await click(page.getByRole('button',{name:/Save example service/}));
  await link('More');await link('Calendar');
  await page.getByRole('checkbox',{name:'Available Monday'}).check();actions++;
- await page.getByRole('textbox',{name:'Exception date'}).fill('2026-12-25');actions++;
+ await page.getByLabel('Exception date').fill('2026-12-25');actions++;
  await click(page.getByRole('button',{name:'Add exception'}));
  await page.getByRole('textbox',{name:'Exception reason 2026-12-25'}).fill('Office holiday');actions++;
  await click(page.getByRole('button',{name:/Save example availability/}));

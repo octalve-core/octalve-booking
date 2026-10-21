@@ -33,7 +33,7 @@ for(const width of widths){
    await page.getByRole('navigation',{name:'Desktop navigation'}).getByRole('link',{name:'Calendar'}).click();
   }
   await check('Calendar');
-  await page.getByRole('textbox',{name:'Exception date'}).fill('2026-12-25');
+  await page.getByLabel('Exception date').fill('2026-12-25');
   await page.getByRole('button',{name:'Add exception'}).click();
   await check('Exception card');
   const report={width,errors,passed:errors.length===0};

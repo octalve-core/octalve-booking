@@ -8,7 +8,7 @@ export const exampleRecords:AppRecordState={
   {id:'CL-0004',name:'Zainab Lawal',email:'zainab@example.invalid',phone:'+234 800 000 0004',notes:'',stage:'New'},
  ],
  services:[
-  {id:'SV-01',title:'Business strategy consultation',minutes:60,price:25000,deposit:10000,format:'Google Meet',description:'A focused discussion of business priorities and practical next steps.',active:true},
+  {id:'SV-01',title:'Business strategy consultation',minutes:60,price:25000,deposit:10000,format:'Google Meet',description:'A focused discussion of business priorities and practical next steps.',active:true,intakeQuestions:[{id:'Q-STRATEGY',label:'What business goal would you like to discuss?',help:'A brief, non-confidential summary is enough.',kind:'Long answer',required:false}]},
   {id:'SV-02',title:'Project scoping session',minutes:45,price:15000,deposit:0,format:'In person',description:'Clarify deliverables, scope, expectations and timelines.',active:true},
   {id:'SV-03',title:'Introductory discovery call',minutes:30,price:0,deposit:0,format:'Zoom',description:'Explore whether we are a good fit.',active:true},
  ],

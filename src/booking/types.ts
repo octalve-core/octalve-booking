@@ -10,7 +10,7 @@ export interface HourWindow {start:string;end:string}
 export type WeeklyHours = Record<number, HourWindow[]>;
 export interface DateOverride { id:string; date:string; closed:boolean; windows:HourWindow[]; note:string; }
 export interface AvailabilitySettings { timezone:string; bufferBefore:number; bufferAfter:number; minNoticeHours:number; maxAdvanceDays:number; overrides:DateOverride[]; }
-export interface IntakeQuestion { id:string; label:string; help:string; kind:'Short answer'|'Long answer'|'Single choice'|'Checkbox'; required:boolean; }
+export interface IntakeQuestion { id:string; label:string; help:string; kind:'Short answer'|'Long answer'|'Single choice'|'Checkbox'; required:boolean; options?:string[]; }
 export type PaymentPolicy = 'Free'|'Deposit'|'Full prepayment'|'Pay later';
 export interface AppRecordState { bookings:Booking[]; clients:Client[]; enquiries:Enquiry[]; services:Service[]; hours:WeeklyHours; availability:AvailabilitySettings; }
 export const BOOKING_STATUSES: BookingStatus[]=['Confirmed','Awaiting bank review','Awaiting payment','Cancelled'];
