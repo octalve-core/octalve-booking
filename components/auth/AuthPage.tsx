@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import {useSearchParams} from 'next/navigation';
+import {useRouter,useSearchParams} from 'next/navigation';
 import {useEffect,useState,type FormEvent,type ReactNode} from 'react';
 import {ArrowLeft,ArrowRight,CalendarCheck,Eye,EyeOff,Mail} from 'lucide-react';
 
@@ -50,12 +50,14 @@ function Heading({title,description}:{title:string;description:string}){return <
 function SignIn({suffix}:{suffix:string}){
  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[remember,setRemember]=useState(false),[message,setMessage]=useState('');
  const enabled=useAccountServiceReady();
+ const router=useRouter();
  async function submit(e:FormEvent<HTMLFormElement>){
   e.preventDefault();
   if(!enabled){setPassword('');setMessage('Account sign-in is being connected to secure authentication. No credentials were sent or saved.');return;}
   const ok=await postAccount('/api/v1/auth/login',{email,password});
   setPassword('');
-  setMessage(ok?'You are signed in. Continue to your workspace.':'Unable to sign in. Check your account and email verification.');
+  setMessage(ok?'Signed in successfully.':'Unable to sign in. Check your account and email verification.');
+  if(ok)router.replace('/account/security');
  }
  return <AuthShell returnHref={'/'+suffix}><Heading title="Welcome back!" description="Sign in to manage your appointments and clients."/>
   <form onSubmit={submit} className="space-y-4"><Field label="Email address"><input className={field} type="email" autoComplete="username" required aria-label="Email address" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@business.com"/></Field>
