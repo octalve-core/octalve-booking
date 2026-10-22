@@ -19,7 +19,7 @@ for(const width of widths){
   await step(page.getByRole('button',{name:'Show password'}));
   if(await page.getByLabel('Password',{exact:true}).getAttribute('type')!=='text')throw Error('Show password did not work');
   await step(page.getByRole('button',{name:'Hide password'}));
-  await page.getByRole('checkbox',{name:'Remember me'}).check();
+  // Session lifetime is fixed and server-controlled; no misleading remember-me toggle.
   await step(page.getByRole('button',{name:'Sign in',exact:true}));
   await page.getByText('No credentials were sent or saved.',{exact:false}).waitFor();
   if(await page.getByLabel('Password',{exact:true}).inputValue())throw Error('Password field must clear after attempted sign-in');
