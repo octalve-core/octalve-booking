@@ -128,7 +128,7 @@ export async function updateMyProfile(deps:IdentityDependencies,token:string,raw
 }
 export async function updateMyBusiness(deps:IdentityDependencies,token:string,workspaceId:string,raw:unknown):Promise<'updated'|'invalid'|'denied'>{
  const patch=readBusinessPatch(raw);
- if(!patch||!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(workspaceId))return 'invalid';
+ if(!patch||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workspaceId))return 'invalid';
  const user=await currentSession(deps,token);if(!user)return 'denied';
  return await deps.db.updateBusinessIdentity({userId:user.userId,workspaceId,patch,at:clock(deps)})?'updated':'denied';
 }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {readProfilePatch,readBusinessPatch} from '../src/server/identity/service.ts';
+import {readProfilePatch,readBusinessPatch,updateMyBusiness} from '../src/server/identity/service.ts';
 const file=path=>readFileSync(new URL(path,import.meta.url),'utf8');
 test('account updates accept validated fields only; no privilege, IDs, emails or verified flags',()=>{
  assert.deepEqual(readProfilePatch({fullName:'  Example Person  ',phoneE164:'+2348012345678'}),{fullName:'Example Person',phoneE164:'+2348012345678'});
@@ -34,4 +34,10 @@ test('platform authority storage is denied to browser and business-runtime roles
  }
  assert.doesNotMatch(sql,/CREATE POLICY/);
  assert.doesNotMatch(sql,/GRANT .*booking_identity_service/);
+});
+
+test('malformed workspace UUID is rejected before any database access',async()=>{
+ const db=new Proxy({}, {get(){throw new Error('DATABASE_MUST_NOT_BE_CALLED')}});
+ const deps={db,now:()=>new Date(),pepper:'unused'};
+ assert.equal(await updateMyBusiness(deps,'invalid-session','00000000-zzzz-4000-8000-000000000000',{name:'Test'}),'invalid');
 });
