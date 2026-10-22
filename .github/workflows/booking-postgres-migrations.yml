@@ -68,7 +68,7 @@ jobs:
             JOIN pg_namespace ns ON ns.oid=c.relnamespace
             WHERE ns.nspname IN ('booking_auth','booking_core','booking_payments','booking_integrations') AND c.relkind='r'
              AND c.relrowsecurity AND c.relforcerowsecurity;
-            IF n != 27 THEN RAISE EXCEPTION 'Expected FORCE RLS on 27 tables, found %', n; END IF;
+            IF n != 29 THEN RAISE EXCEPTION 'Expected FORCE RLS on 29 tables, found %', n; END IF;
           END $$;
           INSERT INTO booking_auth.users(email,full_name,phone_e164)
             VALUES ('valid@booking.example','Booking Example','+2348012345678');
