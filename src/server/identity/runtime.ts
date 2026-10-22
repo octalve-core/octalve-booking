@@ -26,6 +26,12 @@ export async function identityRuntime():Promise<IdentityDependencies|null>{
   if((policy.rows[0]?.policy_count??0)<10)return null;
   const membership=await connection.query<{permitted:boolean}>(`SELECT pg_has_role(current_user,'booking_identity_service','USAGE') AS permitted`);
   if(membership.rows[0]?.permitted!==true)return null;
+  const isolation=await connection.query<{core_access:boolean;payment_access:boolean;platform_access:boolean}>(`
+    SELECT has_schema_privilege(current_user,'booking_core','USAGE') AS core_access,
+           has_schema_privilege(current_user,'booking_payments','USAGE') AS payment_access,
+           has_table_privilege(current_user,'booking_auth.platform_memberships','SELECT') AS platform_access
+  `);
+  if(!isolation.rows.length||isolation.rows[0].core_access||isolation.rows[0].payment_access||isolation.rows[0].platform_access)return null;
  }finally{connection.release()}
  return {
   db:createPgIdentityRepository(pool,{rateKeySecret:process.env.AUTH_RATE_KEY_SECRET!}),

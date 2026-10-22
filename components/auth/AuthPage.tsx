@@ -48,7 +48,7 @@ function PasswordField({label,value,onChange,autoComplete='new-password',minLeng
 function FormNotice({message}:{message:string}){return message?<p role="status" aria-live="polite" className="rounded-xl border border-[#d9e8fd] bg-[#f2f7ff] p-3 text-[12px] leading-5 text-[#264f85]">{message}</p>:null}
 function Heading({title,description}:{title:string;description:string}){return <div className="mb-6 text-center"><h1 className="text-[22px] font-extrabold tracking-tight text-[#163250]">{title}</h1><p className="mt-2 text-[12px] leading-5 text-[#8192a7]">{description}</p></div>}
 function SignIn({suffix}:{suffix:string}){
- const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[remember,setRemember]=useState(false),[message,setMessage]=useState('');
+ const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[message,setMessage]=useState('');
  const enabled=useAccountServiceReady();
  const router=useRouter();
  async function submit(e:FormEvent<HTMLFormElement>){
@@ -62,7 +62,7 @@ function SignIn({suffix}:{suffix:string}){
  return <AuthShell returnHref={'/'+suffix}><Heading title="Welcome back!" description="Sign in to manage your appointments and clients."/>
   <form onSubmit={submit} className="space-y-4"><Field label="Email address"><input className={field} type="email" autoComplete="username" required aria-label="Email address" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@business.com"/></Field>
    <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="current-password"/>
-   <div className="flex flex-wrap items-center justify-between gap-2"><label className="flex items-center gap-2 text-[11px] font-medium text-[#677b94]"><input type="checkbox" className="size-4 accent-[#0064E0]" checked={remember} onChange={e=>setRemember(e.target.checked)}/>Remember me</label><Link href={"/forgot-password"+suffix} className="text-[11px] font-semibold text-[#0064E0] hover:underline">Forgot password?</Link></div>
+   <div className="flex flex-wrap items-center justify-between gap-2"><Link href={"/forgot-password"+suffix} className="text-[11px] font-semibold text-[#0064E0] hover:underline">Forgot password?</Link></div>
    <FormNotice message={message}/><button type="submit" className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0064E0] text-[12px] font-bold text-white transition hover:bg-[#0052B8]">Sign in<ArrowRight size={15}/></button>
   </form>
   <button type="button" disabled aria-label="Continue with Google - not yet connected" className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#e2e8f0] text-[12px] font-semibold text-slate-500 opacity-70"><span aria-hidden className="text-[17px] font-extrabold text-[#4285F4]">G</span>Continue with Google (coming soon)</button>
