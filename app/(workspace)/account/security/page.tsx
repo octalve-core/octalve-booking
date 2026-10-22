@@ -14,6 +14,15 @@ export default function AccountPage(){
  const [name,setName]=useState(''),[phone,setPhone]=useState(''),[message,setMessage]=useState('');
  const [workspaceId,setWorkspaceId]=useState(''),[businessName,setBusinessName]=useState(''),[site,setSite]=useState(''),[timezone,setTimezone]=useState('Africa/Lagos'),[currency,setCurrency]=useState('NGN');
  const [oldPassword,setOldPassword]=useState(''),[newPassword,setNewPassword]=useState(''),[busy,setBusy]=useState(false);
+ function chooseWorkspace(w:Workspace){
+  setWorkspaceId(w.id);setBusinessName(w.name);setSite(w.website??'');setTimezone(w.timezone);setCurrency(w.currency);
+ }
+ function receive(profileData:Profile){
+  setProfile(profileData);setName(profileData.fullName);setPhone(profileData.phoneE164??'');
+  const selected=profileData.workspaces.find(w=>w.id===workspaceId)??profileData.workspaces[0];
+  if(selected)chooseWorkspace(selected);
+  setStatus('ready');
+ }
  async function refresh(){
   try{
    const r=await fetch('/api/v1/auth/me',{cache:'no-store',credentials:'same-origin'});
@@ -21,13 +30,27 @@ export default function AccountPage(){
    if(r.status===401){setStatus('unauthorized');return}
    if(!r.ok){setStatus('error');return}
    const data=await r.json() as {profile:Profile};
-   setProfile(data.profile);setName(data.profile.fullName);setPhone(data.profile.phoneE164??'');
-   setStatus('ready');
+   receive(data.profile);
   }catch{setStatus('error')}
  }
- useEffect(()=>{void refresh()},[]);
+ useEffect(()=>{
+  let active=true;
+  fetch('/api/v1/auth/me',{cache:'no-store',credentials:'same-origin'}).then(async r=>{
+   if(!active)return;
+   if(r.status===503){setStatus('disabled');return}
+   if(r.status===401){setStatus('unauthorized');return}
+   if(!r.ok){setStatus('error');return}
+   const data=await r.json() as {profile:Profile};
+   if(active){
+    setProfile(data.profile);setName(data.profile.fullName);setPhone(data.profile.phoneE164??'');
+    const first=data.profile.workspaces[0];
+    if(first){setWorkspaceId(first.id);setBusinessName(first.name);setSite(first.website??'');setTimezone(first.timezone);setCurrency(first.currency)}
+    setStatus('ready');
+   }
+  }).catch(()=>{if(active)setStatus('error')});
+  return ()=>{active=false};
+ },[]);
  const workspace=profile?.workspaces.find(w=>w.id===workspaceId)??profile?.workspaces[0];
- useEffect(()=>{if(!workspace)return;setWorkspaceId(workspace.id);setBusinessName(workspace.name);setSite(workspace.website??'');setTimezone(workspace.timezone);setCurrency(workspace.currency)},[workspace?.id,profile]);
  async function saveProfile(e:FormEvent){e.preventDefault();if(busy)return;setBusy(true);setMessage('');
   try{const r=await send('/api/v1/auth/me','PATCH',{fullName:name,phoneE164:phone||null});setMessage(r.ok?'Account details saved.':'Unable to save account details.');if(r.ok)await refresh()}catch{setMessage('Connection unavailable.')}finally{setBusy(false)}
  }
@@ -49,7 +72,7 @@ export default function AccountPage(){
      <label className="block text-xs font-medium sm:col-span-2">Phone number (optional, international E.164)<input className={field} type="tel" placeholder="+2348012345678" value={phone} onChange={e=>setPhone(e.target.value)}/></label>
     </div><button disabled={busy} className="mt-5 rounded-xl bg-[#0064E0] px-4 py-3 text-xs font-semibold text-white disabled:opacity-50">Save personal details</button></form>
     <form onSubmit={saveBusiness} className="rounded-2xl border border-[#e1eaf5] bg-white p-6 shadow-sm"><h2 className="text-base font-semibold">Workspace identity</h2>
-     <label className="mt-4 block text-xs font-medium">Workspace<select className={field} value={workspace?.id??''} onChange={e=>setWorkspaceId(e.target.value)}>{profile.workspaces.map(w=><option key={w.id} value={w.id}>{w.name} · {w.role}</option>)}</select></label>
+     <label className="mt-4 block text-xs font-medium">Workspace<select className={field} value={workspace?.id??''} onChange={e=>{const next=profile.workspaces.find(w=>w.id===e.target.value);if(next)chooseWorkspace(next)}}>{profile.workspaces.map(w=><option key={w.id} value={w.id}>{w.name} · {w.role}</option>)}</select></label>
      <div className="mt-4 grid gap-4 sm:grid-cols-2">
       <label className="block text-xs font-medium">Business name<input className={field} required value={businessName} onChange={e=>setBusinessName(e.target.value)}/></label>
       <label className="block text-xs font-medium">Website (optional)<input className={field} type="url" placeholder="https://example.com" value={site} onChange={e=>setSite(e.target.value)}/></label>
