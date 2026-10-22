@@ -1,5 +1,5 @@
 import {createHmac,randomUUID} from 'node:crypto';
-import type {IdentityRepository,EventType,SignupProfile,LoginRecord,Principal,TokenRecord} from './contracts.ts';
+import type {IdentityRepository,EventType,SignupProfile,LoginRecord,Principal,TokenRecord,AccountProfile} from './contracts.ts';
 
 /** Minimal structural adapter compatible with a Node PostgreSQL driver's Pool.connect().
  * The real driver, TLS, credentials and runtime role are injected after provisioning.
@@ -85,9 +85,9 @@ export function createPgIdentityRepository(pool:PgPool,config:IdentityConfig):Id
     const user=maxRow(made.rows,'USER_INSERT');
     if(!user)return 'exists';
     const workspace=await db.query<{id:string}>(`
-      INSERT INTO booking_auth.workspaces(name,slug,kind,timezone,currency,created_at)
-      VALUES($1,$2,$3,$4,$5,$6) RETURNING id
-    `,[profile.businessName??(profile.fullName+' Workspace'),workspaceSlug(),profile.kind,profile.timezone??'Africa/Lagos',profile.currency??'NGN',at]);
+      INSERT INTO booking_auth.workspaces(name,slug,kind,timezone,currency,created_at,website)
+      VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id
+    `,[profile.businessName??(profile.fullName+' Workspace'),workspaceSlug(),profile.kind,profile.timezone??'Africa/Lagos',profile.currency??'NGN',at,profile.website??null]);
     const w=maxRow(workspace.rows,'WORKSPACE_INSERT');
     if(!w)throw new Error('WORKSPACE_INSERT_FAILED');
     await db.query(`
@@ -152,6 +152,159 @@ export function createPgIdentityRepository(pool:PgPool,config:IdentityConfig):Id
     `,[email]);
     const u=maxRow(found.rows,'CREDENTIALS');
     return u?{userId:u.id,passwordDigest:u.password_digest,verified:u.verified,disabled:u.disabled}:null;
+   });
+  },
+  async getAccountProfile(userId):Promise<AccountProfile|null>{
+   return withTx(pool,async db=>{
+    const user=await db.query<{id:string;full_name:string;email:string;phone_e164:string|null}>(`
+     SELECT id,full_name,email::text,phone_e164 FROM booking_auth.users
+     WHERE id=$1 AND verified_at IS NOT NULL AND disabled_at IS NULL
+    `,[userId]);
+    if(user.rows.length!==1)return null;
+    const workspaces=await db.query<{id:string;name:string;kind:'individual'|'business';role:string;timezone:string;currency:string;website:string|null}>(`
+     SELECT w.id,w.name,w.kind,m.role,w.timezone,w.currency,w.website
+     FROM booking_auth.memberships m JOIN booking_auth.workspaces w ON w.id=m.workspace_id
+     WHERE m.user_id=$1 AND m.status='active' ORDER BY w.created_at ASC
+    `,[userId]);
+    const u=user.rows[0];
+    return {userId:u.id,fullName:u.full_name,email:u.email,phoneE164:u.phone_e164,workspaces:workspaces.rows};
+   });
+  },
+  async updateAccountProfile({userId,patch,at}){
+   checkedDate(at);
+   return withTx(pool,async db=>{
+    const updated=await db.query<{id:string}>(`
+     UPDATE booking_auth.users SET
+       full_name=COALESCE($2,full_name),
+       phone_e164=CASE WHEN $4::boolean THEN $3 ELSE phone_e164 END,
+       updated_at=$5
+     WHERE id=$1 AND verified_at IS NOT NULL AND disabled_at IS NULL
+     RETURNING id
+    `,[userId,patch.fullName??null,patch.phoneE164??null,Object.hasOwn(patch,'phoneE164'),at]);
+    if(updated.rows.length!==1)return false;
+    await db.query(`INSERT INTO booking_auth.auth_events(user_id,event_type,occurred_at)
+      VALUES($1,'profile_updated',$2)`,[userId,at]);
+    return true;
+   });
+  },
+  async updateBusinessIdentity({userId,workspaceId,patch,at}){
+   checkedDate(at);
+   return withTx(pool,async db=>{
+    const r=await db.query<{id:string}>(`
+     UPDATE booking_auth.workspaces w SET
+       name=COALESCE($3,w.name),
+       website=CASE WHEN $7::boolean THEN $4 ELSE w.website END,
+       timezone=COALESCE($5,w.timezone),
+       currency=COALESCE($6,w.currency),
+       updated_at=$8
+     WHERE w.id=$2 AND EXISTS(
+       SELECT 1 FROM booking_auth.memberships m
+       JOIN booking_auth.users u ON u.id=m.user_id
+       WHERE m.workspace_id=w.id AND m.user_id=$1 AND m.role='owner'
+         AND m.status='active' AND u.disabled_at IS NULL AND u.verified_at IS NOT NULL
+     )
+     RETURNING id
+    `,[userId,workspaceId,patch.name??null,patch.website??null,patch.timezone??null,patch.currency??null,Object.hasOwn(patch,'website'),at]);
+    if(r.rows.length!==1)return false;
+    await db.query(`INSERT INTO booking_auth.auth_events(user_id,workspace_id,event_type,occurred_at)
+     VALUES($1,$2,'business_identity_updated',$3)`,[userId,workspaceId,at]);
+    return true;
+   });
+  },
+  async changePassword({userId,expectedDigest,newDigest,at}){
+   checkedDate(at);
+   if(!newDigest.startsWith('booking-scrypt-v1
+   checkedDate(at);checkedDate(expiresAt);if(!validDigest(digest)||expiresAt<=at)return false;
+   return withTx(pool,async db=>{
+    const r=await db.query<{id:string}>(`
+      INSERT INTO booking_auth.sessions(user_id,token_digest,created_at,expires_at)
+      SELECT id,$2,$3,$4 FROM booking_auth.users
+      WHERE id=$1 AND verified_at IS NOT NULL AND disabled_at IS NULL
+      RETURNING id
+    `,[userId,digest,at,expiresAt]);
+    return r.rows.length===1;
+   });
+  },
+  async getSession({digest,at}):Promise<Principal|null>{
+   checkedDate(at);if(!validDigest(digest))return null;
+   return withTx(pool,async db=>{
+    const r=await db.query<DbPrincipal>(`
+      SELECT u.id AS user_id,
+        u.verified_at IS NOT NULL AS verified,
+        u.disabled_at IS NOT NULL AS disabled
+      FROM booking_auth.sessions s
+      JOIN booking_auth.users u ON u.id=s.user_id
+      WHERE s.token_digest=$1 AND s.revoked_at IS NULL AND s.expires_at>$2
+    `,[digest,at]);
+    const u=maxRow(r.rows,'SESSION');
+    return u?{userId:u.user_id,verified:u.verified,disabled:u.disabled}:null;
+   });
+  },
+  async revokeSession({digest,at}){
+   checkedDate(at);if(!validDigest(digest))return;
+   await withTx(pool,db=>db.query(`
+     UPDATE booking_auth.sessions SET revoked_at=$2 WHERE token_digest=$1 AND revoked_at IS NULL
+   `,[digest,at]).then(()=>undefined));
+  },
+  async beginReset({email,token,notice,at}){
+   checkedDate(at);checkedToken(token);
+   return withTx(pool,async db=>{
+    const users=await db.query<{id:string}>(`
+      SELECT id FROM booking_auth.users
+      WHERE email=$1 AND verified_at IS NOT NULL AND disabled_at IS NULL FOR UPDATE
+    `,[email]);
+    const user=maxRow(users.rows,'RECOVERY_USER');if(!user)return false;
+    await db.query(`
+      UPDATE booking_auth.one_time_tokens SET consumed_at=$2
+      WHERE user_id=$1 AND purpose='password-reset' AND consumed_at IS NULL
+    `,[user.id,at]);
+    await db.query(`
+      INSERT INTO booking_auth.one_time_tokens(user_id,purpose,token_digest,expires_at,created_at)
+      VALUES($1,'password-reset',$2,$3,$4)
+    `,[user.id,token.digest,token.expiresAt,at]);
+    await enqueueNotice(db,notice,at);
+    return true;
+   });
+  },
+  async completeReset({digest,passwordDigest,at}){
+   checkedDate(at);if(!validDigest(digest)||!passwordDigest.startsWith('booking-scrypt-v1$'))return false;
+   return withTx(pool,async db=>{
+    const tok=await db.query<{id:string;user_id:string}>(`
+      SELECT id,user_id FROM booking_auth.one_time_tokens
+      WHERE token_digest=$1 AND purpose='password-reset'
+        AND consumed_at IS NULL AND expires_at>$2 FOR UPDATE
+    `,[digest,at]);
+    const t=maxRow(tok.rows,'RESET_TOKEN');if(!t)return false;
+    const user=await db.query<{id:string}>(`
+      SELECT id FROM booking_auth.users
+      WHERE id=$1 AND verified_at IS NOT NULL AND disabled_at IS NULL FOR UPDATE
+    `,[t.user_id]);
+    if(!maxRow(user.rows,'RESET_USER'))return false;
+    await db.query('UPDATE booking_auth.users SET password_digest=$2,updated_at=$3 WHERE id=$1',
+      [t.user_id,passwordDigest,at]);
+    await db.query('UPDATE booking_auth.one_time_tokens SET consumed_at=$2 WHERE id=$1',[t.id,at]);
+    await db.query(`
+      UPDATE booking_auth.sessions SET revoked_at=$2
+      WHERE user_id=$1 AND revoked_at IS NULL
+    `,[t.user_id,at]);
+    return true;
+   });
+  }
+ };
+}
+))return false;
+   return withTx(pool,async db=>{
+    const updated=await db.query<{id:string}>(`
+     UPDATE booking_auth.users SET password_digest=$3,updated_at=$4
+     WHERE id=$1 AND password_digest=$2 AND disabled_at IS NULL AND verified_at IS NOT NULL
+     RETURNING id
+    `,[userId,expectedDigest,newDigest,at]);
+    if(updated.rows.length!==1)return false;
+    await db.query(`UPDATE booking_auth.sessions SET revoked_at=$2
+      WHERE user_id=$1 AND revoked_at IS NULL`,[userId,at]);
+    await db.query(`INSERT INTO booking_auth.auth_events(user_id,event_type,occurred_at)
+      VALUES($1,'password_changed',$2)`,[userId,at]);
+    return true;
    });
   },
   async createSession({userId,digest,expiresAt,at}){
