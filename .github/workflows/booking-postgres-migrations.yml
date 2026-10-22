@@ -1,7 +1,7 @@
 name: Booking PostgreSQL migration acceptance
 on:
   push:
-    branches: ['phase/11-*', 'phase/12-*', 'phase/13-*', 'phase/14-*', 'review/booking', 'main']
+    branches: ['phase/11-*', 'phase/12-*', 'phase/13-*', 'phase/14-*', 'phase/15-*', 'review/booking', 'main']
   workflow_dispatch:
 concurrency:
   group: booking-postgres-migrations-${{ github.ref }}
@@ -38,6 +38,16 @@ jobs:
           persist-credentials: false
       - name: Install PostgreSQL client
         run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Frozen dependencies for database-backed identity acceptance
+        run: pnpm install --frozen-lockfile
+
       - name: Apply all migrations against real PostgreSQL 16
         run: |
           set -euo pipefail
@@ -53,7 +63,7 @@ jobs:
           DECLARE n integer;
           BEGIN
             SELECT count(*) INTO n FROM pg_tables WHERE schemaname IN ('booking_auth','booking_core','booking_payments','booking_integrations');
-            IF n != 27 THEN RAISE EXCEPTION 'Expected 27 tables, found %', n; END IF;
+            IF n != 29 THEN RAISE EXCEPTION 'Expected 29 tables, found %', n; END IF;
             SELECT count(*) INTO n FROM pg_class c
             JOIN pg_namespace ns ON ns.oid=c.relnamespace
             WHERE ns.nspname IN ('booking_auth','booking_core','booking_payments','booking_integrations') AND c.relkind='r'
@@ -125,6 +135,26 @@ jobs:
             exit 1
           fi
           echo "Booking data-role isolation confirmed."
+
+      - name: Phase 15 real PostgreSQL 16 lifecycle and privilege checks
+        env:
+          BOOKING_EPHEMERAL_PG_TEST: 'yes'
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $platform_guard$
+          DECLARE n integer;
+          BEGIN
+            SELECT count(*) INTO n FROM pg_policies
+            WHERE schemaname='booking_auth' AND tablename IN ('platform_memberships','platform_audit_events');
+            IF n <> 0 THEN RAISE EXCEPTION 'Platform tables unexpectedly granted RLS policies'; END IF;
+          END $platform_guard$;
+          SQL
+          if psql -X -v ON_ERROR_STOP=1 -c "SET ROLE booking_ci_identity; SELECT * FROM booking_auth.platform_memberships LIMIT 1;"; then
+            echo "SECURITY FAILURE: business identity can read platform permissions"
+            exit 1
+          fi
+          node scripts/phase15-live-postgres-acceptance.mjs
 
       - name: Test atomic slot exclusion, tenant FKs and payment uniqueness
         run: |
